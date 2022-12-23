@@ -1,0 +1,47 @@
+?start: value*
+
+?value: sum
+      | NAME "=" sum ";"    -> assign_var
+      | COMMENT
+      | object
+      | operator
+
+?sum: product
+    | sum "+" product   -> add
+    | sum "-" product   -> sub
+
+?product: atom
+    | product "*" atom  -> mul
+    | product "/" atom  -> div
+
+?atom: NUMBER           -> number
+     | "-" atom         -> neg
+     | NAME             -> var
+     | "(" sum ")"
+
+operator: NAME "(" combined_args? ")" _block
+_block: object
+    | "{" object* "}"
+
+object: function ";"
+function: NAME  WS? "(" combined_args? ")" -> function_call
+combined_args: args ("," kwargs)*
+    | kwargs
+args: _argvalue ("," _argvalue)*
+kwargs: kwargvalue ("," kwargvalue)*
+kwargvalue: NAME WS? "=" WS? _argvalue
+_argvalue: ESCAPED_STRING | sum | function
+
+COMMENT: C_COMMENT | CPP_COMMENT 
+
+%import common.CNAME -> NAME
+%import common.C_COMMENT
+%import common.CPP_COMMENT
+%import common.NUMBER
+%import common.ESCAPED_STRING
+%import common.WS_INLINE
+%import common.WS
+%import common.NEWLINE
+
+%ignore WS
+%ignore NEWLINE
