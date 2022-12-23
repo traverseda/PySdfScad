@@ -1,83 +1,161 @@
 from lark import Lark, v_args
-from lark.visitors import Interpreter
+from lark.visitors import Interpreter, visit_children_decor
+import lark
 from loguru import logger
 import pathlib, sys
 import ast
 from pysdfscad.openscad_builtins import openscad_builtins
-from  collections import ChainMap
+from collections import ChainMap
+import sdf
+from sdf.d3 import SDF3
+from sdf.d2 import SDF2
 
+#We can get general language definitions here: https://en.wikibooks.org/wiki/OpenSCAD_User_Manual/The_OpenSCAD_Language#Chapter_1_--_General
+# I try to stick to the same terminology as the book, but it's really not a
+# direct 1 to 1 translation. For example I can't really have objects that aren't fundamentally function calls,
+# which is why I'd have to go out of my way to keep you from storing an object in a variable.
 
-@v_args(inline=True)
+class OperatorScope():
+    """Manage scope using with statements
+    """
+    def __init__(self, parent):
+        self.parent = parent
+        self.orig_vars = parent.vars
+        self.orig_operators = parent.operators
+        self.orig_functions = parent.functions
+
+    def __enter__(self):
+        self.parent.vars = self.orig_vars.new_child()
+        self.parent.operators = self.orig_operators.new_child()
+        self.parent.functions = self.orig_functions.new_child()
+
+    def __exit__(self, *args):
+        self.parent.vars = self.orig_vars
+        self.parent.operators = self.orig_operators
+        self.parent.functions = self.orig_functions
+
 class EvalOpenscad(Interpreter):
-    from operator import add, sub, mul, truediv as div, neg
-    number = float
+
     def __init__(self):
-        self.vars = {}
+        self.vars = ChainMap()
+        self.operators = ChainMap()
         self.functions = ChainMap(openscad_builtins,{})
         self.logger = logger
 
-    def assign_var(self, name, value):
-        self.vars[name] = value
+    number = v_args(inline=True)(float)
 
-    def kwargs(self,*kwargtokens):
-        """Convert kwargs into dictionary
-        """
-        return {k:v for k,v in kwargtokens}
+    @visit_children_decor
+    def start(self,tree):
+        return tree
 
-    def function_call(self,name,args):
-        args, kwargs = args
-        return self.functions[name](*args,**kwargs)
-
-    def COMMENT(self,comment):
-        return
-
-    def var(self, name):
-        try:
-            return self.vars[name]
-        except KeyError:
-            raise Exception("Variable not found: %s" % name)
-
-    #Misc cleanup
-
-    def combined_args(self,*args):
-        """We want to always have args and kwargs,
-        but the parser will drop them if they don't exist.
-        """
-        if len(args)==2:
-            return args
-
-        new_args=()
-        new_kwargs={}
-        if len(args)==1:
-            if type(args[0])==dict:
-                new_kwargs=args[0]
-            elif type(args[0])==tuple:
-                new_args=args[0]
-
-        return new_args, new_kwargs
-
-    def args(self, *args):
-        return args
-    def kwargvalue(self, *args):
-        return args
-    NAME=str
+    @v_args(inline=True)
     def ESCAPED_STRING(self,value):
-        #Warning, this is a safe eval but... it can return non string objects if the string
-        # isn't qouted properly.
-        out = ast.literal_eval(value)
+        out = ast.literal.eval(value)
         assert type(out) == str
         return out
 
-openscad_parser = Lark((pathlib.Path(__file__).parent/"openscad.lark").read_text(), )
+    @visit_children_decor
+    def object(self,tree):
+        return tree
+
+    @visit_children_decor
+    def var(self,tree):
+        return self.vars[tree[0].value]
+
+    def operator(self,tree):
+        """Operators change the scope of a variable,
+        but they're also essentially functions that operate
+        on groups of objects.
+
+        Operators are things like "translate" or "rotate".
+
+        We need to inject the "children" function into the local
+        context for operators calls.
+        """
+        with OperatorScope(self):
+            children = self.visit_children(tree)
+            objects_2d=[]
+            objects_3d=[]
+            for item in children:
+                if isinstance(item,SDF2): objects_2d.append(item)
+                if isinstance(item,SDF3): objects_3d.append(item)
+
+            if objects_2d and objects_3d:
+                #ToDo: print line numbers
+                raise Exception(f"Can't mix both 2D and 3D objects at {tree}")
+
+            def get_operator_children():
+                """Inject children into operator
+                """
+                return objects_2d or objects_3d
+
+            self.functions["children_list"]=get_operator_children
+
+
+        return children
+
+    @visit_children_decor
+    def combined_args(self, tree):
+        """We greatly prefer to hand kwargs and args to
+        downstream functions, so this here just injects
+        a default empty tuple or dict in if the user didn't
+        define both.
+        """
+        args = ()
+        kwargs = {}
+        for child in tree:
+            if type(child) == dict:
+                kwargs = child
+            elif type(child) == list:
+                args = child
+            else:
+                atype = type(child)
+                raise Exception(f"Unknown argument type {atype}, arguments should be lists, keyword arguments should be dicts.")
+        return args, kwargs
+
+    @visit_children_decor
+    def add(self, tree):
+        return sum(tree)
+
+    @visit_children_decor
+    def args(self, tree):
+        return tree
+
+    @visit_children_decor
+    def kwargvalue(self, tree):
+        return tree
+
+    @visit_children_decor
+    def function_call(self,tree):
+        out = self.functions[tree[0].value](*tree[1][0],**tree[1][1])
+        return out
+
+    @visit_children_decor
+    def assign_var(self, tree):
+        self.vars[tree[0].value]=tree[1]
+        return lark.visitors.Discard
+
+    def comment(self,tree):
+        return lark.visitors.Discard
+
+    @visit_children_decor
+    def kwargs(self, tree):
+        return {k.value:v for k,v in tree}
+
+    def __default__(self,tree):
+        self.logger.warning(f"Unhandled tree node {tree}")
+        return super().__default__(tree)
+
+openscad_parser = Lark((pathlib.Path(__file__).parent/"openscad.lark").read_text(), propagate_positions=True)
 
 if __name__ == '__main__':
     with open(sys.argv[1]) as f:
         tree = openscad_parser.parse(f.read()) 
 #        print(tree)
-        transformer=EvalOpenscad()
-        result = transformer.transform(tree)
+        interpreter=EvalOpenscad()
+        result = interpreter.visit(tree)
         print(result)
-        print(transformer.vars)
+        print(interpreter.vars)
 
 
 

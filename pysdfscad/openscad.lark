@@ -1,8 +1,7 @@
 ?start: value*
 
-?value: sum
-      | NAME "=" sum ";"    -> assign_var
-      | COMMENT
+?value: NAME "=" sum ";"    -> assign_var
+      | comment
       | object
       | operator
 
@@ -21,7 +20,7 @@
 
 operator: NAME "(" combined_args? ")" _block
 _block: object
-    | "{" object* "}"
+    | "{" value* "}"
 
 object: function ";"
 function: NAME  WS? "(" combined_args? ")" -> function_call
@@ -32,7 +31,7 @@ kwargs: kwargvalue ("," kwargvalue)*
 kwargvalue: NAME WS? "=" WS? _argvalue
 _argvalue: ESCAPED_STRING | sum | function
 
-COMMENT: C_COMMENT | CPP_COMMENT 
+comment: C_COMMENT | CPP_COMMENT 
 
 %import common.CNAME -> NAME
 %import common.C_COMMENT
