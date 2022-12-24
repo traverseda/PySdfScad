@@ -10,6 +10,7 @@ python = "^3.10"
 sdf = {git = "https://github.com/fogleman/sdf.git"}
 lark = "^1.1.5"
 loguru = "^0.6.0"
+click = "^8.1.3"
 
 
 [build-system]

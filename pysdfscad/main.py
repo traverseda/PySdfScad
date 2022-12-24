@@ -4,7 +4,7 @@ import lark
 from loguru import logger
 import pathlib, sys
 import ast
-from pysdfscad.openscad_builtins import openscad_builtins
+from pysdfscad.openscad_builtins import openscad_functions, openscad_operators, openscad_vars
 from collections import ChainMap
 import sdf
 from sdf.d3 import SDF3
@@ -34,13 +34,26 @@ class OperatorScope():
         self.parent.operators = self.orig_operators
         self.parent.functions = self.orig_functions
 
+from functools import wraps
+def logged(func):
+    """Adds scad file line number to exceptions
+    """
+    @wraps(func)
+    def with_logging(self, tree, *args, **kwargs):
+        meta = tree.meta
+        return func(self, tree, *args, **kwargs)
+    return with_logging
+
 class EvalOpenscad(Interpreter):
 
-    def __init__(self):
-        self.vars = ChainMap()
-        self.operators = ChainMap()
-        self.functions = ChainMap(openscad_builtins,{})
+    def __init__(self,strict=False):
+        self.vars = ChainMap(openscad_vars,{})
+        self.operators = ChainMap(openscad_operators,{})
+        self.functions = ChainMap(openscad_functions,{})
         self.logger = logger
+        self.strict = strict #Just raise a warning on things like
+        # variables being in the wrong place. Strict=True will raise
+        # an exception instead.
 
     number = v_args(inline=True)(float)
 
@@ -56,12 +69,16 @@ class EvalOpenscad(Interpreter):
 
     @visit_children_decor
     def object(self,tree):
+        if type(tree)==list:
+            assert len(tree)==1
+            return tree[0]
         return tree
 
     @visit_children_decor
     def var(self,tree):
         return self.vars[tree[0].value]
 
+    @logged
     def operator(self,tree):
         """Operators change the scope of a variable,
         but they're also essentially functions that operate
@@ -74,12 +91,13 @@ class EvalOpenscad(Interpreter):
         """
         with OperatorScope(self):
             children = self.visit_children(tree)
+            operator = children.pop(0)
+            args,kwargs=children.pop(0)
             objects_2d=[]
             objects_3d=[]
             for item in children:
                 if isinstance(item,SDF2): objects_2d.append(item)
                 if isinstance(item,SDF3): objects_3d.append(item)
-
             if objects_2d and objects_3d:
                 #ToDo: print line numbers
                 raise Exception(f"Can't mix both 2D and 3D objects at {tree}")
@@ -90,9 +108,7 @@ class EvalOpenscad(Interpreter):
                 return objects_2d or objects_3d
 
             self.functions["children_list"]=get_operator_children
-
-
-        return children
+            return self.operators[operator.value](self,*args,**kwargs)
 
     @visit_children_decor
     def combined_args(self, tree):
@@ -127,13 +143,17 @@ class EvalOpenscad(Interpreter):
 
     @visit_children_decor
     def function_call(self,tree):
-        out = self.functions[tree[0].value](*tree[1][0],**tree[1][1])
+        out = self.functions[tree[0].value](self,*tree[1][0],**tree[1][1])
         return out
 
     @visit_children_decor
     def assign_var(self, tree):
         self.vars[tree[0].value]=tree[1]
         return lark.visitors.Discard
+
+    @visit_children_decor
+    def vector(self, children):
+        return children[0]
 
     def comment(self,tree):
         return lark.visitors.Discard
@@ -148,15 +168,14 @@ class EvalOpenscad(Interpreter):
 
 openscad_parser = Lark((pathlib.Path(__file__).parent/"openscad.lark").read_text(), propagate_positions=True)
 
-if __name__ == '__main__':
+def main():
     with open(sys.argv[1]) as f:
         tree = openscad_parser.parse(f.read()) 
 #        print(tree)
         interpreter=EvalOpenscad()
         result = interpreter.visit(tree)
         print(result)
-        print(interpreter.vars)
 
-
-
+if __name__ == '__main__':
+    main()
 

@@ -18,18 +18,20 @@
      | NAME             -> var
      | "(" sum ")"
 
-operator: NAME "(" combined_args? ")" _block
+operator: NAME "(" combined_args ")" _block
 _block: object
     | "{" value* "}"
 
 object: function ";"
-function: NAME  WS? "(" combined_args? ")" -> function_call
+function: NAME  WS? "(" combined_args ")" -> function_call
 combined_args: args ("," kwargs)*
-    | kwargs
+    | kwargs?
 args: _argvalue ("," _argvalue)*
 kwargs: kwargvalue ("," kwargvalue)*
 kwargvalue: NAME WS? "=" WS? _argvalue
-_argvalue: ESCAPED_STRING | sum | function
+_argvalue: ESCAPED_STRING | sum | function | vector
+
+vector: "[" args "]" -> vector
 
 comment: C_COMMENT | CPP_COMMENT 
 
