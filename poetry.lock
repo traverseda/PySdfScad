@@ -803,7 +803,10 @@ files = [
 [package.extras]
 dev = ["black (>=19.3b0)", "pytest (>=4.6.2)"]
 
+[extras]
+qtgui = []
+
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "26380aa28c77569f000afd570681f0650fda84d1574c34c46c7d95f8aa566dc2"
+content-hash = "9ff3169a2473b0a405e30f5d7808fb30e15efe7a2d01105698f15bf924ddfdc3"

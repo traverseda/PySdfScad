@@ -12,6 +12,8 @@ lark = "^1.1.5"
 loguru = "^0.6.0"
 click = "^8.1.3"
 
+[tool.poetry.extras]
+qtgui = ["PyQt5","QScintilla"]
 
 [build-system]
 requires = ["poetry-core"]

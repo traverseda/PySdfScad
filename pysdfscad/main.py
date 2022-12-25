@@ -4,8 +4,9 @@ import lark
 from loguru import logger
 import pathlib, sys
 import ast
-from pysdfscad.openscad_builtins import openscad_functions, openscad_operators, openscad_vars
+from pysdfscad.openscad_builtins import openscad_functions, openscad_operators, openscad_vars, union
 from collections import ChainMap
+from functools import reduce
 import sdf
 from sdf.d3 import SDF3
 from sdf.d2 import SDF2
@@ -44,6 +45,20 @@ def logged(func):
         return func(self, tree, *args, **kwargs)
     return with_logging
 
+def extract_objects(children):
+    """Extract the objects, and only the
+    objects, from the list.
+    """
+    objects_2d=[]
+    objects_3d=[]
+    for item in children:
+        if isinstance(item,SDF2): objects_2d.append(item)
+        if isinstance(item,SDF3): objects_3d.append(item)
+    if objects_2d and objects_3d:
+        #ToDo: print line numbers
+        raise Exception(f"Can't mix both 2D and 3D objects at {tree}")
+    return objects_2d or objects_3d
+
 class EvalOpenscad(Interpreter):
 
     def __init__(self,strict=False):
@@ -59,7 +74,11 @@ class EvalOpenscad(Interpreter):
 
     @visit_children_decor
     def start(self,tree):
-        return tree
+        #Combine the top level objects into one.
+        objects = extract_objects(tree)
+        if objects:
+            return reduce(lambda x, y: sdf.union(x,y), objects)
+        return None
 
     @v_args(inline=True)
     def ESCAPED_STRING(self,value):
@@ -73,6 +92,28 @@ class EvalOpenscad(Interpreter):
             assert len(tree)==1
             return tree[0]
         return tree
+
+    def function_def(self,tree):
+        """Define a new function from inside the openscad code
+        Basically we defer calling the sub tree until we
+        call the new function.
+        """
+        #ToDo: this is not the most tidy, but I suppose it will do...
+        function_name = tree.children[0]
+        def_args, def_kwargs = self.visit_children(tree.children[1])
+        function_body=tree.children[2]
+        def generated_func(context,*args,**kwargs):
+            """A function dynamically generated from
+            openscad code
+            """
+            with OperatorScope(context):
+                context.vars.update(def_kwargs)
+                args = zip(def_args, args)
+                context.vars.update(args)
+                context.vars.update(kwargs)
+                return context.visit(function_body)
+        self.functions[function_name]=generated_func
+        return None
 
     @visit_children_decor
     def var(self,tree):
@@ -93,22 +134,23 @@ class EvalOpenscad(Interpreter):
             children = self.visit_children(tree)
             operator = children.pop(0)
             args,kwargs=children.pop(0)
-            objects_2d=[]
-            objects_3d=[]
-            for item in children:
-                if isinstance(item,SDF2): objects_2d.append(item)
-                if isinstance(item,SDF3): objects_3d.append(item)
-            if objects_2d and objects_3d:
-                #ToDo: print line numbers
-                raise Exception(f"Can't mix both 2D and 3D objects at {tree}")
+            objects = extract_objects(children)
 
             def get_operator_children():
                 """Inject children into operator
                 """
-                return objects_2d or objects_3d
+                return objects
 
             self.functions["children_list"]=get_operator_children
             return self.operators[operator.value](self,*args,**kwargs)
+
+    @visit_children_decor
+    def name(self,children):
+        return children[0].value
+
+    @visit_children_decor
+    def arg_def_name(self,children):
+        return children
 
     @visit_children_decor
     def combined_args(self, tree):
@@ -153,6 +195,8 @@ class EvalOpenscad(Interpreter):
 
     @visit_children_decor
     def vector(self, children):
+        if not children:
+            return []
         return children[0]
 
     def comment(self,tree):
@@ -174,7 +218,7 @@ def main():
 #        print(tree)
         interpreter=EvalOpenscad()
         result = interpreter.visit(tree)
-        print(result)
+        result.save('test.stl')
 
 if __name__ == '__main__':
     main()

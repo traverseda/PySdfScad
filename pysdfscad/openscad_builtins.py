@@ -1,28 +1,44 @@
 import sdf
 from functools import reduce
 import lark
+import math
 
 openscad_functions={}
 openscad_operators={}
-openscad_vars={}
+openscad_vars={
+    "true": True,
+    "false": False,
+    "PI": math.pi,
+    'undef': None,
+}
 
 def echo(context,*args,**kwargs):
     out = [str(i) for i in args]
     for k,v in kwargs.items():
         out.append(k+"="+str(v))
-    print("ECHO: "+", ".join(out))
-    return None
-
-def cylinder(context,r,h):
-    return sdf.capped_cylinder(0, h, r)
+    context.logger.info("ECHO: "+", ".join(out))
+    return args, kwargs
 
 openscad_functions['echo']=echo
-openscad_functions['cylinder']=cylinder
+
+def sphere(context,r):
+    return sdf.sphere(r)
+
+openscad_functions['sphere']=sphere
+
+def cube(context,size, center=False):
+    x,y,z=size
+    offset=(0,0,0)
+    if not center:
+        offset=[x/2,y/2,z/2]
+    return sdf.box(size).translate(offset)
+
+openscad_functions['cube']=cube
 
 def union(context):
     children=context.functions['children_list']()
     if not children: return lark.visitors.Discard
-    return reduce(lambda x, y: sdf.union(x,y), children)
+    return reduce(sdf.union, children)
 
 openscad_operators['union']=union
 
