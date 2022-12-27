@@ -161,7 +161,15 @@ class EvalOpenscad(Interpreter):
                 return objects
 
             self.functions["children_list"]=get_operator_children
-            return self.operators[operator.value](self,*args,**kwargs)
+            out = self.operators[operator.value](self,*args,**kwargs)
+            print(operator, out)
+            return out
+
+    @visit_children_decor
+    def function_call(self,tree):
+        out = self.functions[tree[0].value](self,*tree[1][0],**tree[1][1])
+        print(tree[0].value,out)
+        return out
 
     @visit_children_decor
     def name(self,children):
@@ -216,11 +224,6 @@ class EvalOpenscad(Interpreter):
     @visit_children_decor
     def kwargvalue(self, tree):
         return tree
-
-    @visit_children_decor
-    def function_call(self,tree):
-        out = self.functions[tree[0].value](self,*tree[1][0],**tree[1][1])
-        return out
 
     @visit_children_decor
     def assign_var(self, tree):
