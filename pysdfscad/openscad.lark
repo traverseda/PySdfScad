@@ -2,6 +2,7 @@
 
 ?value: NAME "=" sum ";"    -> assign_var
       | function_def
+      | module_def
       | comment
       | object
       | operator
@@ -20,12 +21,18 @@
      | "(" sum ")"
 
 operator: NAME "(" combined_args ")" _block
+
+operator_def: "module" name "(" args_definition ")" _block
+
 _block: object
-    | "{" value* "}"
+    | "{" value* "}" ";"?
 
 object: function ";"
 function: NAME  WS? "(" combined_args ")" -> function_call
 function_def: "function" NAME "(" args_definition ")" "=" sum ";"-> function_def
+
+// Defines an operator
+module_def: "module" NAME "(" args_definition ")" _block -> module_def
 
 combined_args: args ("," kwargs)*
     | kwargs?
@@ -42,8 +49,6 @@ _argvalue: ESCAPED_STRING | sum | function | vector
 
 vector: "[" args? "]" -> vector
 
-// Defines an operator
-module: "module" WS? NAME WS? "(" combined_args ")" _block 
 
 comment: C_COMMENT | CPP_COMMENT 
 name: NAME

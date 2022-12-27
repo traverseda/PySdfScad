@@ -29,5 +29,14 @@ union(){
 
 translate([40,40])sphere(r=10);
 
+function func1(r)=r;
+
 function func0(r1,r2,foo="bar") = r1+r2;
 echo(func0(1,2));
+
+module doublesphere(r){
+    sphere(r);
+    translate([r,0])sphere(r);
+}
+
+doublesphere(12){};

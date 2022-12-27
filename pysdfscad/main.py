@@ -100,7 +100,7 @@ class EvalOpenscad(Interpreter):
         """
         #ToDo: this is not the most tidy, but I suppose it will do...
         function_name = tree.children[0]
-        def_args, def_kwargs = self.visit_children(tree.children[1])
+        def_args, def_kwargs = self.visit(tree.children[1])
         function_body=tree.children[2]
         def generated_func(context,*args,**kwargs):
             """A function dynamically generated from
@@ -113,6 +113,25 @@ class EvalOpenscad(Interpreter):
                 context.vars.update(kwargs)
                 return context.visit(function_body)
         self.functions[function_name]=generated_func
+        return None
+
+    def module_def(self,tree):
+        #Identical to a function def...
+        # Probably some clever way to dedupe it.
+        function_name = tree.children[0]
+        def_args, def_kwargs = self.visit(tree.children[1])
+        function_body=tree.children[2]
+        def generated_func(context,*args,**kwargs):
+            """A function dynamically generated from
+            openscad code
+            """
+            with OperatorScope(context):
+                context.vars.update(def_kwargs)
+                args = zip(def_args, args)
+                context.vars.update(args)
+                context.vars.update(kwargs)
+                return context.visit(function_body)
+        self.operators[function_name]=generated_func
         return None
 
     @visit_children_decor
@@ -170,6 +189,21 @@ class EvalOpenscad(Interpreter):
                 atype = type(child)
                 raise Exception(f"Unknown argument type {atype}, arguments should be lists, keyword arguments should be dicts.")
         return args, kwargs
+
+    @visit_children_decor
+    def args_definition(self,tree):
+        args = ()
+        kwargs = {}
+        for child in tree:
+            if type(child) == dict:
+                kwargs = child
+            elif type(child) == list:
+                args = child
+            else:
+                atype = type(child)
+                raise Exception(f"Unknown argument type {atype}, arguments should be lists, keyword arguments should be dicts.")
+        return args, kwargs
+
 
     @visit_children_decor
     def add(self, tree):

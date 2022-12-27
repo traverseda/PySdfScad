@@ -1,7 +1,9 @@
 **ALPHA SOFTWARE, NOT READY FOR USE**
 
 This is currently made available for developers, don't expect this to be
-usable for a while.
+usable for a while. Core language primitives work for the most part, but
+things are missing and the stuff that does work doesn't work exactly like it
+does in openscad.
 
 An openscad interpretor written in python and using signed-distance functions.
 
@@ -44,3 +46,14 @@ operator to make objects hollow (amazing for things like pipes), or use
  * You can't color a mesh, or make parts of it transparent
 
 This is another thing that can probably be fixed eventually, but is still quite challenging.
+
+#ToDo:
+
+ - [ ] Error messages are bad (include line numbers and stuff)
+ - [ ] No flow control (if statements don't exist)
+ - [ ] No ranges
+ - [ ] Functions/Operators raise exception is arguments are missing. In openscad
+    they just raise soft warnings or provide a default.
+ - [ ] Minkowski/hull operators require SDF functions I don't know how to implement
+ - [ ] Openscad does something weird to their floats when you echo them, and that makes
+    it hard to write test cases.
