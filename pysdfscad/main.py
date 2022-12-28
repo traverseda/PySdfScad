@@ -122,13 +122,17 @@ class EvalOpenscad(Interpreter):
                 context.vars.update(kwargs)
                 out = extract_objects(context.visit_children(function_body)) 
                 return reduce(sdf.union, out)
-                #return out
         self.operators[function_name]=generated_func
         return None
 
     @visit_children_decor
     def var(self,tree):
         return self.vars[tree[0].value]
+
+    @visit_children_decor
+    def range(self,tree):
+        #ToDo: This works nothing like openscad's implementation
+        return range(int(tree[0]),int(tree[2]),int(tree[1]))
 
     @logged
     def operator_call(self,tree):
@@ -204,14 +208,17 @@ class EvalOpenscad(Interpreter):
                 raise Exception(f"Unknown argument type {atype}, arguments should be lists, keyword arguments should be dicts.")
         return args, kwargs
 
-
     @visit_children_decor
     def add(self, tree):
         return sum(tree)
 
     @visit_children_decor
-    def sub(self, tree):
+    def sub(self,tree):
         return tree[0]-tree[1]
+
+    @visit_children_decor
+    def neg(self, tree):
+        return tree[0]*-1
 
     @visit_children_decor
     def mul(self, tree):

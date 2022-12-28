@@ -1,5 +1,6 @@
 import sdf
 from functools import reduce
+import itertools
 import lark
 import math
 
@@ -22,6 +23,12 @@ def echo(context,*args,**kwargs):
 openscad_functions['echo']=echo
 openscad_operators['echo']=echo
 
+def sin(context, i): return math.sin(i)
+openscad_functions['sin']=sin
+
+def cos(context, i): return math.cos(i)
+openscad_functions['cos']=cos
+
 def sphere(context,r):
     return sdf.sphere(r)
 
@@ -35,6 +42,17 @@ def cube(context,size, center=False):
     return sdf.box(size).translate(offset)
 
 openscad_operators['cube']=cube
+
+def for_op(context,**kwargs):
+    children=[]
+    keys = kwargs.keys()
+    for item in itertools.product(*kwargs.values()):
+        context.vars.update(zip(keys,item))
+        children.extend(context.functions['children_list']())
+    if not children: return
+    return reduce(sdf.union, children)
+
+openscad_operators['for']=for_op
 
 def union(context):
     children=context.functions['children_list']()

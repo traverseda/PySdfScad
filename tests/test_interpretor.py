@@ -84,6 +84,33 @@ def test_def_function(caplog):
     """)    
     assert 'ECHO: 2' in caplog.text
 
+def test_range(caplog):
+    eval_scad("""
+    echo([0:2:20]);
+    """)    
+    assert 'ECHO: range(0, 20, 2)\n' in caplog.text
+
+def test_for(caplog):
+    out = eval_scad("for (x=[1,2,3],y=[1,2,3])echo(x,y);")
+    expected=["ECHO: 1.0, 1.0",
+              "ECHO: 1.0, 2.0",
+              "ECHO: 1.0, 3.0",
+              "ECHO: 2.0, 1.0",
+              "ECHO: 2.0, 2.0",
+              "ECHO: 2.0, 3.0",
+              "ECHO: 3.0, 1.0",
+              "ECHO: 3.0, 2.0",
+              "ECHO: 3.0, 3.0"]
+    for expected, line in zip(expected, caplog.text.split("\n")):
+        assert expected in line
+
+def test_def_function_nested(caplog):
+    eval_scad("""
+    function func1(r)=r;
+    echo(1+func1(1));
+    """)    
+    assert 'ECHO: 2' in caplog.text
+
 #def test_sphere():
 #    out = eval_scad("sphere(r=20);")
 #    out = out.generate(samples=2**22)

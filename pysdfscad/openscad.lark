@@ -22,6 +22,8 @@
      | "-" atom         -> neg
      | NAME             -> var
      | "(" sum ")"
+     | function
+     | range
 
 operator: NAME "(" combined_args ")" block -> operator_call
 block: operator
@@ -34,6 +36,8 @@ function_def: "function" NAME "(" args_definition ")" "=" sum ";"-> function_def
 // Defines an operator
 module_def: "module" NAME "(" args_definition ")" block -> module_def
 
+range: "[" sum ":" sum ":" sum "]"
+
 combined_args: args ("," kwargs)*
     | kwargs?
 
@@ -45,7 +49,7 @@ arg_def_name:(name ("," name)*)
 args: _argvalue ("," _argvalue)*
 kwargs: kwargvalue ("," kwargvalue)*
 kwargvalue: NAME  "="  _argvalue
-_argvalue: ESCAPED_STRING | sum | function | vector
+_argvalue: ESCAPED_STRING | sum | function | vector | range
 
 vector: "[" args? "]" -> vector
 
