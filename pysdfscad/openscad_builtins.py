@@ -20,11 +20,12 @@ def echo(context,*args,**kwargs):
     return args, kwargs
 
 openscad_functions['echo']=echo
+openscad_operators['echo']=echo
 
 def sphere(context,r):
     return sdf.sphere(r)
 
-openscad_functions['sphere']=sphere
+openscad_operators['sphere']=sphere
 
 def cube(context,size, center=False):
     x,y,z=size
@@ -33,11 +34,11 @@ def cube(context,size, center=False):
         offset=[x/2,y/2,z/2]
     return sdf.box(size).translate(offset)
 
-openscad_functions['cube']=cube
+openscad_operators['cube']=cube
 
 def union(context):
     children=context.functions['children_list']()
-    if not children: return lark.visitors.Discard
+    if not children: return
     return reduce(sdf.union, children)
 
 openscad_operators['union']=union
@@ -50,6 +51,8 @@ def translate(context,vector):
         x,y,z=vector
     else:
         raise TypeError(f"Unable to convert translate({vector}) parameter to a vec3 or vec2 of numbers")
-    return union(context).translate((x,y,z))
+    children = union(context)
+    if not children: return
+    return children.translate((x,y,z))
 
 openscad_operators['translate']=translate

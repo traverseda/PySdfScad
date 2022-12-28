@@ -4,7 +4,6 @@
       | function_def
       | module_def
       | comment
-      | object
       | operator
 
 ?sum: product
@@ -14,25 +13,26 @@
 ?product: atom
     | product "*" atom  -> mul
     | product "/" atom  -> div
+    | product "%" atom  -> mod
+    | product "^" atom  -> exp
+    | product "|" atom  -> or_op
+    | product "&" atom  -> and_op
 
 ?atom: NUMBER           -> number
      | "-" atom         -> neg
      | NAME             -> var
      | "(" sum ")"
 
-operator: NAME "(" combined_args ")" _block
-
-operator_def: "module" name "(" args_definition ")" _block
-
-_block: object
+operator: NAME "(" combined_args ")" block -> operator_call
+block: operator
     | "{" value* "}" ";"?
+    | ";"
 
-object: function ";"
-function: NAME  WS? "(" combined_args ")" -> function_call
+function: NAME "(" combined_args ")" -> function_call
 function_def: "function" NAME "(" args_definition ")" "=" sum ";"-> function_def
 
 // Defines an operator
-module_def: "module" NAME "(" args_definition ")" _block -> module_def
+module_def: "module" NAME "(" args_definition ")" block -> module_def
 
 combined_args: args ("," kwargs)*
     | kwargs?
@@ -44,7 +44,7 @@ arg_def_name:(name ("," name)*)
 
 args: _argvalue ("," _argvalue)*
 kwargs: kwargvalue ("," kwargvalue)*
-kwargvalue: NAME WS? "=" WS? _argvalue
+kwargvalue: NAME  "="  _argvalue
 _argvalue: ESCAPED_STRING | sum | function | vector
 
 vector: "[" args? "]" -> vector

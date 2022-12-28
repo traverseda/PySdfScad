@@ -66,9 +66,6 @@ class EvalOpenscad(Interpreter):
         self.operators = ChainMap(openscad_operators,{})
         self.functions = ChainMap(openscad_functions,{})
         self.logger = logger
-        self.strict = strict #Just raise a warning on things like
-        # variables being in the wrong place. Strict=True will raise
-        # an exception instead.
 
     number = v_args(inline=True)(float)
 
@@ -85,13 +82,6 @@ class EvalOpenscad(Interpreter):
         out = ast.literal.eval(value)
         assert type(out) == str
         return out
-
-    @visit_children_decor
-    def object(self,tree):
-        if type(tree)==list:
-            assert len(tree)==1
-            return tree[0]
-        return tree
 
     def function_def(self,tree):
         """Define a new function from inside the openscad code
@@ -130,7 +120,9 @@ class EvalOpenscad(Interpreter):
                 args = zip(def_args, args)
                 context.vars.update(args)
                 context.vars.update(kwargs)
-                return context.visit(function_body)
+                out = extract_objects(context.visit_children(function_body)) 
+                return reduce(sdf.union, out)
+                #return out
         self.operators[function_name]=generated_func
         return None
 
@@ -139,7 +131,7 @@ class EvalOpenscad(Interpreter):
         return self.vars[tree[0].value]
 
     @logged
-    def operator(self,tree):
+    def operator_call(self,tree):
         """Operators change the scope of a variable,
         but they're also essentially functions that operate
         on groups of objects.
@@ -150,25 +142,25 @@ class EvalOpenscad(Interpreter):
         context for operators calls.
         """
         with OperatorScope(self):
-            children = self.visit_children(tree)
-            operator = children.pop(0)
-            args,kwargs=children.pop(0)
-            objects = extract_objects(children)
-
+            #children = self.visit_children(tree)
+            operator = tree.children[0]
+            args,kwargs=self.visit(tree.children[1])
+            objects = tree.children[2]
             def get_operator_children():
                 """Inject children into operator
                 """
-                return objects
+                out = extract_objects(self.visit_children(objects))
+                return out
 
             self.functions["children_list"]=get_operator_children
             out = self.operators[operator.value](self,*args,**kwargs)
-            print(operator, out)
+
+            #print("operator_call",operator,tree.meta.line,tree.meta.column, out )
             return out
 
     @visit_children_decor
     def function_call(self,tree):
         out = self.functions[tree[0].value](self,*tree[1][0],**tree[1][1])
-        print(tree[0].value,out)
         return out
 
     @visit_children_decor
@@ -218,6 +210,38 @@ class EvalOpenscad(Interpreter):
         return sum(tree)
 
     @visit_children_decor
+    def sub(self, tree):
+        return tree[0]-tree[1]
+
+    @visit_children_decor
+    def mul(self, tree):
+        return tree[0]*tree[1]
+
+    @visit_children_decor
+    def div(self, tree):
+        return tree[0]/tree[1]
+
+    @visit_children_decor
+    def mod(self, tree):
+        return tree[0] % tree[1]
+
+    @visit_children_decor
+    def exp(self, tree):
+        return tree[0]**tree[1]
+
+    @visit_children_decor
+    def or_op(self, tree):
+        """Used as a union on SDF functions
+        """
+        return tree[0] | tree[1]
+
+    @visit_children_decor
+    def and_op(self, tree):
+        """Used as an intersection on SDF functions
+        """
+        return tree[0] & tree[1]
+
+    @visit_children_decor
     def args(self, tree):
         return tree
 
@@ -243,12 +267,16 @@ class EvalOpenscad(Interpreter):
     def kwargs(self, tree):
         return {k.value:v for k,v in tree}
 
+    def block(self,tree):
+        return tree
+
     def __default__(self,tree):
         self.logger.warning(f"Unhandled tree node {tree}")
         return super().__default__(tree)
 
 openscad_parser = Lark((pathlib.Path(__file__).parent/"openscad.lark").read_text(), propagate_positions=True)
 
+@logger.catch
 def main():
     with open(sys.argv[1]) as f:
         tree = openscad_parser.parse(f.read()) 
