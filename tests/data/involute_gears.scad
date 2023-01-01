@@ -175,9 +175,8 @@ module bevel_gear (
             {
                 rotate (half_thick_angle)
                 translate ([0,0,pitch_apex-apex_to_apex])
-                cylinder ($fn=number_of_teeth*2, r1=root_cone_full_radius,r2=0,h=apex_to_apex);
+                cylinder (r1=root_cone_full_radius,r2=0,h=apex_to_apex);
                 for (i = [1:number_of_teeth])
-//              for (i = [1:1])
                 {
                     rotate ([0,0,i*360/number_of_teeth])
                     {
@@ -198,7 +197,6 @@ module bevel_gear (
             {
                 translate ([0,0,-back_cone_descent])
                 cylinder (
-                    $fn=number_of_teeth*2,
                     r1=back_cone_end_radius,
                     r2=back_cone_full_radius*2,
                     h=apex_to_apex + back_cone_descent);
@@ -257,7 +255,7 @@ module involute_bevel_gear_tooth (
     start_angle = involute_intersect_angle (base_radius*2, min_radius);
     stop_angle = involute_intersect_angle (base_radius*2, outer_radius*2);
 
-    res=(involute_facets!=0)?involute_facets:($fn==0)?5:$fn/4;
+    res=(involute_facets!=0)?involute_facets:(0)?5:4;
 
     translate ([0,0,pitch_apex])
     rotate ([0,-atan(back_cone_radius/cone_distance),0])

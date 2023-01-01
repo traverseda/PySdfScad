@@ -120,8 +120,10 @@ class EvalOpenscad(Interpreter):
                 args = zip(def_args, args)
                 context.vars.update(args)
                 context.vars.update(kwargs)
-                out = extract_objects(context.visit_children(function_body)) 
+                out = extract_objects(context.visit_children(function_body))
+                if not out: return
                 return reduce(sdf.union, out)
+
         self.operators[function_name]=generated_func
         return None
 
@@ -130,9 +132,25 @@ class EvalOpenscad(Interpreter):
         return self.vars[tree[0].value]
 
     @visit_children_decor
+    def ifelse(self,tree):
+        if tree[0]:
+            return self.visit_children(tree[1])
+        elif len(tree)==3:
+            return self.visit_children(tree[2])
+        return None
+
+    @visit_children_decor
+    def vector_index(self,tree):
+        vector, index = tree
+        return vector[int(index)]
+
+    @visit_children_decor
     def range(self,tree):
         #ToDo: This works nothing like openscad's implementation
-        return range(int(tree[0]),int(tree[2]),int(tree[1]))
+        if len(tree) == 3:
+            return range(int(tree[0]),int(tree[2]),int(tree[1]))
+        else:
+            return range(int(tree[0]),int(tree[1]))
 
     @logged
     def operator_call(self,tree):
@@ -233,6 +251,22 @@ class EvalOpenscad(Interpreter):
         return tree[0] % tree[1]
 
     @visit_children_decor
+    def lt_op(self, tree):
+        return tree[0] < tree[1]
+
+    @visit_children_decor
+    def conditional_op(self, tree):
+        return tree[1] if tree[0] else tree[2]
+
+    @visit_children_decor
+    def inequality(self,tree):
+        return tree[0] != tree[1]
+
+    @visit_children_decor
+    def equality(self,tree):
+        return tree[0] == tree[1]
+
+    @visit_children_decor
     def exp(self, tree):
         return tree[0]**tree[1]
 
@@ -290,7 +324,10 @@ def main():
 #        print(tree)
         interpreter=EvalOpenscad()
         result = interpreter.visit(tree)
-        result.save('test.stl')
+        if not result:
+            interpreter.logger.info("No top level geometry to render")
+        else:
+            result.save('test.stl')
 
 if __name__ == '__main__':
     main()

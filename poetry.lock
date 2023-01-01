@@ -711,6 +711,18 @@ files = [
 numpy = ">=1.17.3"
 
 [[package]]
+name = "railroad-diagrams"
+version = "2.0.4"
+description = "Generate SVG railroad syntax diagrams, like on JSON.org."
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "railroad-diagrams-2.0.4.tar.gz", hash = "sha256:7413ffa194583bd510efc3e4668f61d5a38beeca186bb7c36eea6d0d6f03fb45"},
+    {file = "railroad_diagrams-2.0.4-py3-none-any.whl", hash = "sha256:769c9aba83fd42361b8ce471953ae8224ed92c66b9c470caefefbb36ff9d991c"},
+]
+
+[[package]]
 name = "rich"
 version = "12.6.0"
 description = "Render rich text, tables, progress bars, syntax highlighting, markdown and more to the terminal"
@@ -907,4 +919,4 @@ qtgui = []
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "10502ad10500dc402d163e7c93027969b7cc1f53c7caccb3cce05da975ac2d96"
+content-hash = "cd42f89b0001d648b76c138b99ae1514df9c4ce7ea8ac2aa0f779048bfba818b"

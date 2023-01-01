@@ -84,11 +84,34 @@ def test_def_function(caplog):
     """)    
     assert 'ECHO: 2' in caplog.text
 
+def test_vector_index(caplog):
+    eval_scad("""
+    foo=[0,1,2][0];
+    echo(foo);
+    """)
+    assert 'ECHO: 0.0\n' in caplog.text
+
+
 def test_range(caplog):
     eval_scad("""
     echo([0:2:20]);
     """)    
     assert 'ECHO: range(0, 20, 2)\n' in caplog.text
+
+def test_conditional_op(caplog):
+    eval_scad("""
+    echo(false ? 0 : 1);
+    """)
+    assert 'ECHO: 1.0\n' in caplog.text
+
+def test_if_op(caplog):
+    eval_scad("""
+    if (true) echo(true);
+    if (false) echo(true); else echo(false);
+    """)
+    lines = caplog.text.split("\n")
+    assert 'ECHO: True' in lines[0]
+    assert 'ECHO: False' in lines[1]
 
 def test_for(caplog):
     out = eval_scad("for (x=[1,2,3],y=[1,2,3])echo(x,y);")

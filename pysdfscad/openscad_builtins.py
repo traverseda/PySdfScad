@@ -49,8 +49,7 @@ def for_op(context,**kwargs):
     for item in itertools.product(*kwargs.values()):
         context.vars.update(zip(keys,item))
         children.extend(context.functions['children_list']())
-    if not children: return
-    return reduce(sdf.union, children)
+    return children
 
 openscad_operators['for']=for_op
 

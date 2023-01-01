@@ -1,6 +1,7 @@
 ?start: value*
 
 ?value: NAME "=" sum ";"    -> assign_var
+      | ifelse
       | function_def
       | module_def
       | comment
@@ -17,18 +18,28 @@
     | product "^" atom  -> exp
     | product "|" atom  -> or_op
     | product "&" atom  -> and_op
+    | product "!=" atom  -> inequality
+    | product "==" atom  -> equality
+    | product "<" atom  -> lt_op
+    | sum "?" sum ":" sum  -> conditional_op
 
 ?atom: NUMBER           -> number
      | "-" atom         -> neg
-     | NAME             -> var
+     | NAME        -> var
      | "(" sum ")"
      | function
      | range
+     | vector
+     | vector_index
 
+vector_index: sum "[" sum "]"
 operator: NAME "(" combined_args ")" block -> operator_call
 block: operator
     | "{" value* "}" ";"?
     | ";"
+    | ifelse
+
+ifelse: "if" "(" sum ")" block ("else"  block )?
 
 function: NAME "(" combined_args ")" -> function_call
 function_def: "function" NAME "(" args_definition ")" "=" sum ";"-> function_def
@@ -37,6 +48,7 @@ function_def: "function" NAME "(" args_definition ")" "=" sum ";"-> function_def
 module_def: "module" NAME "(" args_definition ")" block -> module_def
 
 range: "[" sum ":" sum ":" sum "]"
+    | "[" sum ":" sum "]"
 
 combined_args: args ("," kwargs)*
     | kwargs?
