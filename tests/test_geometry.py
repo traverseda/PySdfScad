@@ -11,7 +11,10 @@ like what you're expecting. There's no good way to verify that
 a translate *actually* translates anything.
 
 This is a bit brittle, but currently we don't really have a
-good solution.
+good solution. If fogleman's SDF library gets the ability to
+import geometry and check geometry volume there are some fun
+hacks we can do that would let us compare the output directly
+to openscad generated meshes.
 
 """
 

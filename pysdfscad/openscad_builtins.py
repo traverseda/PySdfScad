@@ -73,3 +73,17 @@ def translate(context,vector):
     return children.translate((x,y,z))
 
 openscad_operators['translate']=translate
+
+def difference(context):
+    children=context.functions['children_list']()
+    if not children: return
+    return reduce(sdf.difference, children)
+
+openscad_operators['difference']=difference
+
+def intersection(context):
+    children=context.functions['children_list']()
+    if not children: return
+    return reduce(sdf.intersection, children)
+
+openscad_operators['intersection']=intersection

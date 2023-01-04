@@ -11,6 +11,11 @@ import sdf
 from sdf.d3 import SDF3
 from sdf.d2 import SDF2
 
+
+logger.remove()
+log_format = "<green>{time}</green> - <level>{level}</level> - {extra} - {message}"
+logger.add(sys.stderr, format=log_format,colorize=True, backtrace=False, diagnose=True, catch=True)
+
 #We can get general language definitions here: https://en.wikibooks.org/wiki/OpenSCAD_User_Manual/The_OpenSCAD_Language#Chapter_1_--_General
 # I try to stick to the same terminology as the book, but it's really not a
 # direct 1 to 1 translation. For example I can't really have objects that aren't fundamentally function calls,
@@ -39,9 +44,11 @@ from functools import wraps
 def logged(func):
     """Adds scad file line number to exceptions
     """
+    @logger.catch(reraise=True)
     @wraps(func)
     def with_logging(self, tree, *args, **kwargs):
         meta = tree.meta
+#        with logger.contextualize(line = meta.line, column=meta.column):
         return func(self, tree, *args, **kwargs)
     return with_logging
 
@@ -69,6 +76,7 @@ class EvalOpenscad(Interpreter):
 
     number = v_args(inline=True)(float)
 
+    @logged
     @visit_children_decor
     def start(self,tree):
         #Combine the top level objects into one.
@@ -77,12 +85,14 @@ class EvalOpenscad(Interpreter):
             return reduce(lambda x, y: sdf.union(x,y), objects)
         return None
 
+    @logged
     @v_args(inline=True)
     def ESCAPED_STRING(self,value):
         out = ast.literal.eval(value)
         assert type(out) == str
         return out
 
+    @logged
     def function_def(self,tree):
         """Define a new function from inside the openscad code
         Basically we defer calling the sub tree until we
@@ -105,6 +115,7 @@ class EvalOpenscad(Interpreter):
         self.functions[function_name]=generated_func
         return None
 
+    @logged
     def module_def(self,tree):
         #Identical to a function def...
         # Probably some clever way to dedupe it.
@@ -127,10 +138,12 @@ class EvalOpenscad(Interpreter):
         self.operators[function_name]=generated_func
         return None
 
+    @logged
     @visit_children_decor
     def var(self,tree):
         return self.vars[tree[0].value]
 
+    @logged
     @visit_children_decor
     def ifelse(self,tree):
         if tree[0]:
@@ -139,11 +152,13 @@ class EvalOpenscad(Interpreter):
             return self.visit_children(tree[2])
         return None
 
+    @logged
     @visit_children_decor
     def vector_index(self,tree):
         vector, index = tree
         return vector[int(index)]
 
+    @logged
     @visit_children_decor
     def range(self,tree):
         #ToDo: This works nothing like openscad's implementation
@@ -180,19 +195,23 @@ class EvalOpenscad(Interpreter):
             #print("operator_call",operator,tree.meta.line,tree.meta.column, out )
             return out
 
+    @logged
     @visit_children_decor
     def function_call(self,tree):
         out = self.functions[tree[0].value](self,*tree[1][0],**tree[1][1])
         return out
 
+    @logged
     @visit_children_decor
     def name(self,children):
         return children[0].value
 
+    @logged
     @visit_children_decor
     def arg_def_name(self,children):
         return children
 
+    @logged
     @visit_children_decor
     def combined_args(self, tree):
         """We greatly prefer to hand kwargs and args to
@@ -212,6 +231,7 @@ class EvalOpenscad(Interpreter):
                 raise Exception(f"Unknown argument type {atype}, arguments should be lists, keyword arguments should be dicts.")
         return args, kwargs
 
+    @logged
     @visit_children_decor
     def args_definition(self,tree):
         args = ()
@@ -226,102 +246,126 @@ class EvalOpenscad(Interpreter):
                 raise Exception(f"Unknown argument type {atype}, arguments should be lists, keyword arguments should be dicts.")
         return args, kwargs
 
+    @logged
     @visit_children_decor
     def add(self, tree):
         return sum(tree)
 
+    @logged
     @visit_children_decor
     def sub(self,tree):
         return tree[0]-tree[1]
 
+    @logged
     @visit_children_decor
     def neg(self, tree):
         return tree[0]*-1
 
+    @logged
     @visit_children_decor
     def mul(self, tree):
         return tree[0]*tree[1]
 
+    @logged
     @visit_children_decor
     def div(self, tree):
         return tree[0]/tree[1]
 
+    @logged
     @visit_children_decor
     def mod(self, tree):
         return tree[0] % tree[1]
 
+    @logged
     @visit_children_decor
     def lt_op(self, tree):
         return tree[0] < tree[1]
 
+    @logged
+    @visit_children_decor
+    def gt_op(self, tree):
+        return tree[0] < tree[1]
+
+    @logged
     @visit_children_decor
     def conditional_op(self, tree):
         return tree[1] if tree[0] else tree[2]
 
+    @logged
     @visit_children_decor
     def inequality(self,tree):
         return tree[0] != tree[1]
 
+    @logged
     @visit_children_decor
     def equality(self,tree):
         return tree[0] == tree[1]
 
+    @logged
     @visit_children_decor
     def exp(self, tree):
         return tree[0]**tree[1]
 
+    @logged
     @visit_children_decor
     def or_op(self, tree):
         """Used as a union on SDF functions
         """
         return tree[0] | tree[1]
 
+    @logged
     @visit_children_decor
     def and_op(self, tree):
         """Used as an intersection on SDF functions
         """
         return tree[0] & tree[1]
 
+    @logged
     @visit_children_decor
     def args(self, tree):
         return tree
 
+    @logged
     @visit_children_decor
     def kwargvalue(self, tree):
         return tree
 
+    @logged
     @visit_children_decor
     def assign_var(self, tree):
         self.vars[tree[0].value]=tree[1]
         return lark.visitors.Discard
 
+    @logged
     @visit_children_decor
     def vector(self, children):
         if not children:
             return []
         return children[0]
 
+    @logged
     def comment(self,tree):
         return lark.visitors.Discard
 
+    @logged
     @visit_children_decor
     def kwargs(self, tree):
         return {k.value:v for k,v in tree}
 
+    @logged
     def block(self,tree):
         return tree
 
+    @logged
     def __default__(self,tree):
         self.logger.warning(f"Unhandled tree node {tree}")
         return super().__default__(tree)
 
 openscad_parser = Lark((pathlib.Path(__file__).parent/"openscad.lark").read_text(), propagate_positions=True)
 
-@logger.catch
 def main():
     with open(sys.argv[1]) as f:
         tree = openscad_parser.parse(f.read()) 
-#        print(tree)
         interpreter=EvalOpenscad()
         result = interpreter.visit(tree)
         if not result:

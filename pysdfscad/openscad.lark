@@ -1,10 +1,10 @@
 ?start: value*
 
-?value: NAME "=" sum ";"    -> assign_var
+?value: "$"? NAME "=" sum ";"    -> assign_var
       | ifelse
       | function_def
       | module_def
-      | comment
+      | COMMENT
       | operator
 
 ?sum: product
@@ -17,15 +17,16 @@
     | product "%" atom  -> mod
     | product "^" atom  -> exp
     | product "|" atom  -> or_op
-    | product "&" atom  -> and_op
+    | product "&&" atom  -> and_op
     | product "!=" atom  -> inequality
     | product "==" atom  -> equality
     | product "<" atom  -> lt_op
+    | product ">" atom  -> gt_op
     | sum "?" sum ":" sum  -> conditional_op
 
 ?atom: NUMBER           -> number
      | "-" atom         -> neg
-     | NAME        -> var
+     | "$"? NAME        -> var
      | "(" sum ")"
      | function
      | range
@@ -60,13 +61,13 @@ arg_def_name:(name ("," name)*)
 
 args: _argvalue ("," _argvalue)*
 kwargs: kwargvalue ("," kwargvalue)*
-kwargvalue: NAME  "="  _argvalue
+kwargvalue: "$"? NAME  "="  _argvalue
 _argvalue: ESCAPED_STRING | sum | function | vector | range
 
 vector: "[" args? "]" -> vector
 
 
-comment: C_COMMENT | CPP_COMMENT 
+COMMENT: C_COMMENT | CPP_COMMENT 
 name: NAME
 
 %import common.CNAME -> NAME

@@ -10,8 +10,6 @@
 //  hub_thickness = 17,
 //  circles=8);
 
-//Complex Spur Gear Test:
-test_gears ();
 
 // Meshing Double Helix:
 //test_meshing_double_helix ();
@@ -406,7 +404,7 @@ module gear (
                 if (hub_thickness == 0)
                     translate ([0,0,-1])
                     cylinder (r=rim_radius,h=rim_thickness+2);
-                //if the rim is thicker than the gear, carve out gear body
+
                 else if (rim_thickness>gear_thickness){
                     //if not centered, carve out only the top
                     if (centered_gear == false){
@@ -414,7 +412,6 @@ module gear (
                         cylinder (r=rim_radius,h=rim_thickness);
                     }
                     else
-                        //carve out half from top and half from bottom
                         union ()
                         {
                             translate ([0,0,(gear_thickness + rim_thickness)/2])
@@ -770,7 +767,7 @@ module test_double_helix_gear (
     circles=8)
 {
     //double helical gear
-    {
+    union(){
         twist=200;
         height=20;
         pressure_angle=30;
@@ -843,3 +840,5 @@ module test_backlash ()
     cylinder ($fn=20,r=backlash / 4,h=25);
 }
 
+//Complex Spur Gear Test:
+test_gears ();

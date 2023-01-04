@@ -10,6 +10,14 @@ An openscad interpretor written in python and using signed-distance functions.
 We use [fogleman's SDF library](https://github.com/fogleman/sdf) which makes exentsive use
 of numpy.
 
+# Instalation
+
+## CLI
+
+Presuming that your system has good cli support, first install [pipx](https://pypa.github.io/pipx/)
+
+Then simply run `pipx install pysdfscad[qtgui]`
+
 ## Differences from openscad
 
 While we aim to be fully compatible with openscad there are some difference. If
