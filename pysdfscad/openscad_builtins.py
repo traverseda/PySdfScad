@@ -39,6 +39,8 @@ openscad_functions['version']=version
 def sphere(context,r):
     return sdf.sphere(r)
 
+openscad_operators['sphere']=sphere
+
 def cylinder(context,r=0,r1=None,r2=None,h=None,center=False):
     if r1 ==None : r1=r
     if r2 == None: r2=r
