@@ -55,13 +55,10 @@ operator to make objects hollow (amazing for things like pipes), or use
 
 This is another thing that can probably be fixed eventually, but is still quite challenging.
 
-# ToDo:
+## It's still alpha software
 
- - [ ] Error messages are bad (include line numbers and stuff)
- - [x] No flow control (if statements don't exist)
- - [x] No ranges
- - [ ] Functions/Operators raise exception is arguments are missing. In openscad
-    they just raise soft warnings or provide a default.
- - [ ] Minkowski/hull operators require SDF functions I don't know how to implement
- - [ ] Openscad does something weird to their floats when you echo them, and that makes
-    it hard to write test cases.
+I don't want to give a false impression that it works from this carefully staged screenshot,
+it mostly doesn't.
+
+![](Screenshot_0.png)
+
