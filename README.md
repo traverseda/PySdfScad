@@ -55,11 +55,11 @@ operator to make objects hollow (amazing for things like pipes), or use
 
 This is another thing that can probably be fixed eventually, but is still quite challenging.
 
-#ToDo:
+# ToDo:
 
  - [ ] Error messages are bad (include line numbers and stuff)
- - [ ] No flow control (if statements don't exist)
- - [ ] No ranges
+ - [x] No flow control (if statements don't exist)
+ - [x] No ranges
  - [ ] Functions/Operators raise exception is arguments are missing. In openscad
     they just raise soft warnings or provide a default.
  - [ ] Minkowski/hull operators require SDF functions I don't know how to implement

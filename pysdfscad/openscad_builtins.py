@@ -29,10 +29,25 @@ openscad_functions['sin']=sin
 def cos(context, i): return math.cos(i)
 openscad_functions['cos']=cos
 
+def version(context):
+    import pkg_resources
+    my_version = pkg_resources.get_distribution('pysdfscad').version
+    return my_version.split(".")
+
+openscad_functions['version']=version
+
 def sphere(context,r):
     return sdf.sphere(r)
 
-openscad_operators['sphere']=sphere
+def cylinder(context,r=0,r1=None,r2=None,h=None,center=False):
+    if r1 ==None : r1=r
+    if r2 == None: r2=r
+    if center == False:
+        return sdf.capped_cone([0,0,0], sdf.Z*h, r1, r2)
+    elif center==True:
+        return sdf.capped_cone([0,0,0], sdf.Z*h, r1, r2).translate(-sdf.Z*h/2)
+
+openscad_operators['cylinder']=cylinder
 
 def cube(context,size, center=False):
     x,y,z=size

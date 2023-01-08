@@ -48,8 +48,11 @@ def logged(func):
     @wraps(func)
     def with_logging(self, tree, *args, **kwargs):
         meta = tree.meta
-#        with logger.contextualize(line = meta.line, column=meta.column):
-        return func(self, tree, *args, **kwargs)
+        line = getattr(meta,"line","unknown")
+        column = getattr(meta,"column","unknown")
+
+        with logger.contextualize(line = line, column=column):
+            return func(self, tree, *args, **kwargs)
     return with_logging
 
 def extract_objects(children):

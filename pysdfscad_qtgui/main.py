@@ -3,11 +3,16 @@ import textwrap
 import pkgutil
 import pysdfscad
 from pysdfscad.main import EvalOpenscad, openscad_parser
+from loguru import logger
 from pathlib import Path
 
 from PyQt5.Qt import QColor, QApplication, QFont, QFontMetrics
-from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QMenuBar, QMenu, QAction, QHBoxLayout, QWidget, QSplitter, QFileDialog
-from PyQt5.QtCore import Qt, QSettings, QPoint, QSize
+from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QMenuBar, QMenu,\
+        QAction, QHBoxLayout, QWidget, QSplitter, QFileDialog, QShortcut, QMessageBox
+from PyQt5 import QtWidgets
+from PyQt5.QtCore import Qt, QSettings, QPoint, QSize, QThread, pyqtSlot, pyqtSignal, QObject
+from PyQt5.QtGui import QKeySequence
+from PyQt5 import QtCore
 
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
@@ -19,6 +24,14 @@ from pyqtconsole.console import PythonConsole
 
 from lark import Lark
 import json
+
+from threading import Thread
+from pathlib import Path
+
+from collections import defaultdict
+
+logger = logger.opt(ansi=True)
+
 def themes():
     data = json.load(open(os.path.dirname(os.path.realpath(__file__))+"/themes.json","r"))
     out = {}
@@ -200,6 +213,27 @@ example_intersection();
 // If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 """
 
+from pysdfscad_qtgui.logWidget import QTextEditLogger
+log_format = "<level>{level}</level> - {extra} - {message}"
+from contextlib import redirect_stdout
+
+class LoggerWriter:
+    def __init__(self, level):
+        # self.level is really like using log.debug(message)
+        # at least in my case
+        self.level = level
+
+    def write(self, message):
+        # if statement reduces the amount of newlines that are
+        # printed to the logger
+        if message != '\n':
+            self.level(message)
+
+    def flush(self):
+        pass
+
+import os
+
 class Window(QMainWindow):
     """Main Window."""
     def __init__(self, parent=None):
@@ -209,17 +243,22 @@ class Window(QMainWindow):
         self.resize(self.settings.value("size", QSize(800, 600)))
         self.move(self.settings.value("pos", QPoint(50, 50)))
 
+        self.logger=QTextEditLogger(QtWidgets.QTextEdit())
+        logger.add(self.logger, colorize=True, format=log_format)
+        #for color in ("red","green","cyan","blue","black","magenta","white","yellow","underline","dim","normal","italic","strike",):
+        #    logger.info(f"<bold><{color}>{color}</{color}></bold>")
+
         self.file=None
         self.result=None
         self.mesh=None
+        self.example_actions=set()
         self.setWindowTitle(f"{self.file} - pySdfScad")
         self.editor = EditorAll()
         self.editor.setText(EXAMPLE_TEXT)
         self.preview=gl.GLViewWidget()
         self.preview.setCameraPosition(distance=40)
 
-        self.console = PythonConsole()
-        self.console.eval_in_thread()
+        self.console = self.logger.widget
 
         self.sidebar=QSplitter()
         self.sidebar.setOrientation(0)
@@ -288,22 +327,16 @@ class Window(QMainWindow):
         else:
             self.file.write_text(self.editor.text())
 
-    def render(self):
+    def _render(self):
         tree = openscad_parser.parse(self.editor.text())
         interpreter=EvalOpenscad()
         self.result = interpreter.visit(tree)
         if not self.result:
             interpreter.logger.info("No top level geometry to render")
         else:
-            #Add grid
-            self.preview.clear()
-            g = gl.GLGridItem()
-            g.setSize(200, 200)
-            g.setSpacing(5, 5)
-            self.preview.addItem(g)
-
             import numpy as np
-            points = self.result.generate()
+            with redirect_stdout(LoggerWriter(logger.info)):
+                points = self.result.generate()
             points, cells = np.unique(points, axis=0, return_inverse=True)
             cells = cells.reshape((-1, 3))
             self.mesh=(points,cells)
@@ -314,7 +347,18 @@ class Window(QMainWindow):
                                  shader='normalColor',
                                  drawEdges=False, color = (0.2,0.8,0.2,1), edgeColor=(0.2, 0.5, 0.2, 1)
                                  )
+            self.preview.clear()
+            g = gl.GLGridItem()
+            g.setSize(200, 200)
+            g.setSpacing(5, 5)
+            self.preview.addItem(g)
             self.preview.addItem(mesh)
+
+    def render(self):
+        self.logger.text=[]
+        logger.info(f"Started new render with file {self.file}")
+        thread = Thread(target=self._render)
+        thread.start()
 
     def _connectActions(self):
         # Connect File actions
@@ -352,6 +396,42 @@ class Window(QMainWindow):
         
         self.renderAction = QAction("&Render", self)
 
+    def _loadExample(self,file):
+        self.editor.setText(file.read_text())
+
+    def _exampleMenu(self,parent):
+        """Generate examples based on folder structure
+        """
+        #ToDO: this is a bunch of files we need to check for during
+        # startup, which will reduce startup time (especially on non-ssds).
+        # Can we generate this menu dynamically?
+        module_path = Path(os.path.dirname(os.path.realpath(__file__)))
+
+        nested_dict = lambda: defaultdict(nested_dict)
+        nest = nested_dict()
+
+        for a in (module_path/"examples").glob("**/*.scad"):
+            rel = a.relative_to(module_path)
+            nested=nest
+            for b in rel.parent.parts:
+                nested=nested[b]
+            nested[a.name]=a
+
+        def recursive_menu(item,parent):
+            for key, value in item.items():
+                if isinstance(value, dict):
+                    menu = QMenu(key, parent)
+                    for i in recursive_menu(value,menu):
+                        menu.addMenu(i)
+                    yield menu
+                else:
+                    text = value.read_text
+                    action = parent.addAction(key)
+                    action.triggered.connect(lambda: self.editor.setText(text()))
+
+        menu_items=list(recursive_menu(nest,parent))
+        return menu_items[0]
+
     def _createMenuBar(self):
         menuBar = self.menuBar()
         self.setMenuBar(menuBar)
@@ -363,10 +443,12 @@ class Window(QMainWindow):
         fileMenu.addAction(self.saveAction)
         fileMenu.addAction(self.saveAsAction)
         fileMenu.addAction(self.exportMeshAction)
+        fileMenu.addMenu(self._exampleMenu(fileMenu))
         fileMenu.addAction(self.exitAction)
         # Design Menu
         designMenu = menuBar.addMenu("&Design")
         designMenu.addAction(self.renderAction)
+        #designMenu.addAction(QAction('Auto-render', designMenu, checkable=True))
         # Edit menu
         #editmenu = menubar.addmenu("&edit")
         #editMenu.addAction(self.copyAction)

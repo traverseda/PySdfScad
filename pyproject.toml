@@ -32,6 +32,7 @@ pysdfscad_qtgui = { callable = "pysdfscad_qtgui.main:main", extras = ["qtgui"] }
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.2.0"
 cx-freeze = "^6.13.1"
+jurigged = "^0.5.3"
 
 [build-system]
 requires = ["poetry-core"]
