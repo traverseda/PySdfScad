@@ -159,6 +159,8 @@ class EditorAll(QsciScintilla):
         self.setIndentationsUseTabs(False)
         self.setIndentationWidth(4)
         self.setBackspaceUnindents(True)
+        #self.setAutoIndent(True)
+
         self.setIndentationGuides(True)
         self.SendScintilla(QsciScintilla.SCI_SETMULTIPLESELECTION, True)
         self.SendScintilla(QsciScintilla.SCI_SETMULTIPASTE, 1)
@@ -349,8 +351,9 @@ class Window(QMainWindow):
                                  )
             self.preview.clear()
             g = gl.GLGridItem()
+
             g.setSize(200, 200)
-            g.setSpacing(5, 5)
+            g.setSpacing(10, 10)
             self.preview.addItem(g)
             self.preview.addItem(mesh)
 

@@ -1,5 +1,6 @@
 import sdf
 from functools import reduce
+from loguru import logger
 import itertools
 import lark
 import math
@@ -13,18 +14,14 @@ openscad_vars={
     'undef': None,
 }
 
-def echo(context,*args,**kwargs):
+def echo(*args,**kwargs):
     out = [str(i) for i in args]
     for k,v in kwargs.items():
         out.append(k+"="+str(v))
-    context.logger.info("ECHO: "+", ".join(out))
-    return args, kwargs
+    logger.info("ECHO: "+", ".join(out))
 
-openscad_functions['echo']=echo
-openscad_operators['echo']=echo
 
-def sin(context, i): return math.sin(i)
-openscad_functions['sin']=sin
+sin = math.sin
 
 def cos(context, i): return math.cos(i)
 openscad_functions['cos']=cos
@@ -70,12 +67,32 @@ def for_op(context,**kwargs):
 
 openscad_operators['for']=for_op
 
-def union(context):
+def union(context, smooth=0):
     children=context.functions['children_list']()
     if not children: return
-    return reduce(sdf.union, children)
+    return reduce(lambda a,b: sdf.union(a,b,k=smooth), children)
 
 openscad_operators['union']=union
+
+def blend(context,ratio=0.5):
+    children=context.functions['children_list']()
+    child1 = children[0]
+    child2 = reduce(sdf.union,children[1:])
+    return child1.blend(child2,k=ratio)
+
+openscad_operators['blend']=blend
+
+def shell(context,thickness=10):
+    children = union(context)
+    return children.shell(thickness)
+
+openscad_operators['shell']=shell
+
+def twist(context,degrees):
+    #Has some significant weirdness that seems to be related to translation.
+    return union(context).twist(degrees)
+
+#openscad_operators['twist']=twist
 
 def translate(context,vector):
     if len(vector)==2:
@@ -91,16 +108,16 @@ def translate(context,vector):
 
 openscad_operators['translate']=translate
 
-def difference(context):
+def difference(context, smooth=0):
     children=context.functions['children_list']()
     if not children: return
-    return reduce(sdf.difference, children)
+    return reduce(lambda a,b: sdf.difference(a,b,k=smooth), children)
 
 openscad_operators['difference']=difference
 
-def intersection(context):
+def intersection(context, smooth=0):
     children=context.functions['children_list']()
     if not children: return
-    return reduce(sdf.intersection, children)
+    return reduce(lambda a,b: sdf.intersection(a,b,k=smooth), children)
 
 openscad_operators['intersection']=intersection

@@ -69,6 +69,7 @@ vector: "[" args? "]" -> vector
 
 COMMENT: C_COMMENT | CPP_COMMENT 
 name: NAME
+_name: NAME
 
 %import common.CNAME -> NAME
 %import common.C_COMMENT

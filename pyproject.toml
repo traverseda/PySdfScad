@@ -33,6 +33,8 @@ pysdfscad_qtgui = { callable = "pysdfscad_qtgui.main:main", extras = ["qtgui"] }
 pytest = "^7.2.0"
 cx-freeze = "^6.13.1"
 jurigged = "^0.5.3"
+astor = "^0.8.1"
+black = "^22.12.0"
 
 [build-system]
 requires = ["poetry-core"]
