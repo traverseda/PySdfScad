@@ -5,12 +5,17 @@ usable for a while. Core language primitives work for the most part, but
 things are missing and the stuff that does work doesn't work exactly like it
 does in openscad.
 
-An openscad interpretor written in python and using signed-distance functions.
+An openscad interpretor (compiler?) written in python and using signed-distance functions.
+
+Compiles openscad code to a python abstract-syntax-tree (which can then be converted into
+python text or run on as-is)
 
 We use [fogleman's SDF library](https://github.com/fogleman/sdf) which makes exentsive use
 of numpy.
 
 # Instalation
+
+# Faq
 
 ## Differences from openscad
 
@@ -48,6 +53,21 @@ operator to make objects hollow (amazing for things like pipes), or use
  * You can't color a mesh, or make parts of it transparent
 
 This is another thing that can probably be fixed eventually, but is still quite challenging.
+
+## Development
+
+ * Wouldn't an interpreter be better than a compiler?
+
+Probably, yeah. The openscad to AST got a bit out of hand. Now that it does exist though
+there are some pretty significant advantages. We can do proper tracebacks and other cool
+exception handling. We can also, furthur down the line, do things like import/introspect/modify
+an openscad file from another language (like python, or a theoretical future openscad-ish
+language).
+
+So yeah, more complicated than it probably needed to be, but I'm hopeful I can some cool
+stuff with it in the future. The original (unfinished) interpreter code was also a handful,
+and I don't think this is all that much more unreadable.
+
 
 ## It's still alpha software
 

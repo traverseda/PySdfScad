@@ -1,5 +1,6 @@
 import sdf
 from functools import reduce
+import inspect
 from loguru import logger
 import itertools
 import lark
@@ -9,29 +10,37 @@ def module_echo(*args,**kwargs):
     out = [str(i) for i in args]
     for k,v in kwargs.items():
         out.append(k+"="+str(v))
-    logger.info("ECHO: "+", ".join(out))
+    logger.opt(depth=1).info("ECHO: "+", ".join(out))
     return
     yield
+
+var_undef = None
+var_true = True
+var_false = False
 
 def module_children():
     return
     yield
 
-class ChildContext():
-    """Manages child context for openscad operators"""
+class NewChildContext():
+    """Manages child context for openscad operators, by saving the old
+    context and restoring it when you exit the context handler.
+    """
 
     def __enter__(self):
-        global module_children
-        self.old_children = module_children
-        return
+        pass
+#        global module_children
+        print("Enter childcontext",module_children)
+#        self.old_children = module_children
 
     def __exit__(self, exception_type, exception_value, traceback):
-        global module_children
-        module_children = self.old_children
+        pass
+#        global module_children
+        print("Exit  childcontext",module_children)
+#        module_children = self.old_children
 
-def sphere(context,r):
-    return sdf.sphere(r)
-
+def module_sphere(r):
+    yield sdf.sphere(r)
 
 def cylinder(context,r=0,r1=None,r2=None,h=None,center=False):
     if r1 ==None : r1=r
@@ -49,7 +58,6 @@ def cube(context,size, center=False):
         offset=[x/2,y/2,z/2]
     return sdf.box(size).translate(offset)
 
-
 def for_op(context,**kwargs):
     children=[]
     keys = kwargs.keys()
@@ -58,12 +66,11 @@ def for_op(context,**kwargs):
         children.extend(context.functions['children_list']())
     return children
 
-
-def union(context, smooth=0):
-    children=context.functions['children_list']()
+def module_union(smooth=0):
+    children = list(module_children())
+    print("module_children",children)
     if not children: return
-    return reduce(lambda a,b: sdf.union(a,b,k=smooth), children)
-
+    yield reduce(lambda a,b: sdf.union(a,b,k=smooth), children)
 
 def blend(context,ratio=0.5):
     children=context.functions['children_list']()
@@ -71,16 +78,13 @@ def blend(context,ratio=0.5):
     child2 = reduce(sdf.union,children[1:])
     return child1.blend(child2,k=ratio)
 
-
 def shell(context,thickness=10):
     children = union(context)
     return children.shell(thickness)
 
-
 def twist(context,degrees):
     #Has some significant weirdness that seems to be related to translation.
     return union(context).twist(degrees)
-
 
 def translate(context,vector):
     if len(vector)==2:
@@ -94,12 +98,10 @@ def translate(context,vector):
     if not children: return
     return children.translate((x,y,z))
 
-
 def difference(context, smooth=0):
     children=context.functions['children_list']()
     if not children: return
     return reduce(lambda a,b: sdf.difference(a,b,k=smooth), children)
-
 
 def intersection(context, smooth=0):
     children=context.functions['children_list']()

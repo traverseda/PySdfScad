@@ -1,3 +1,7 @@
-if (false) echo(false); else if (true) echo(true); else echo("false2");
-    
-union();
+foo=3;
+union(){
+    foo=14;
+    echo(foo);
+}
+echo(foo);
+

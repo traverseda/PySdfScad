@@ -1,4 +1,4 @@
-from pysdfscad.main import EvalOpenscad, openscad_parser
+from pysdfscad.main import OpenscadFile
 import logging
 import pytest
 from _pytest.logging import caplog as _caplog
@@ -16,15 +16,19 @@ def caplog(_caplog):
     yield _caplog
     logger.remove(handler_id)
 
+
 def eval_scad(data):
-    tree = openscad_parser.parse(data)
-    interpretor = EvalOpenscad()
-    return interpretor.visit(tree)
+    interpreter = OpenscadFile()
+    interpreter.text = data
+#    print(interpreter.as_python_ansi())
+    out = interpreter.run()
+    return out
 
 def test_echo(caplog):
     eval_scad("""
     echo("Hello World");
-    """)    
+    """)
+    print(*caplog.text)
     assert 'ECHO: "Hello World"' in caplog.text
 
 def test_basic_types(caplog):
@@ -133,12 +137,6 @@ def test_def_function_nested(caplog):
     echo(1+func1(1));
     """)    
     assert 'ECHO: 2' in caplog.text
-
-#def test_sphere():
-#    out = eval_scad("sphere(r=20);")
-#    out = out.generate(samples=2**22)
-#    print(hash(tuple(out)))
-#    raise
 
 def test_scope(caplog):
     """Test to make sure blocks are properly

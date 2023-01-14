@@ -8,6 +8,11 @@ to debug and generally deal with.
 This looks a lot my intimidating than it is (I tell myself, as I try to
 wrangle with the monstrocity I've writen).
 
+Since AST trees are really annoying to look at and work on we're formatting
+this file using `black`. I'm generally not a fan of auto format like
+this but I'll be damned if I'm going do manually format all these crazy
+AST constructors.
+
 macropy3 has a good introduction on the topic, but since we're only
 worried about outputting/generating an AST we can ignore more than half
 of it. Mostly I used it for the overview and for its recomened reading.
@@ -26,7 +31,8 @@ You probably don't need to work on this unless you're implemnting completly
 new syntax though.
 
 Note that we're not actually compiling to python, we're compiling to
-python bytecode. We use a third-party module to turn that bytecode into
+python bytecode (more or less).
+We use a third-party module to turn that bytecode into
 python source code, but it really shouldn't matter if that representation
 looks good or is idiomatic.
 """
@@ -36,7 +42,7 @@ import ast
 from meta.asttools import print_ast  # type: ignore
 from pathlib import Path
 import functools
-
+import astor
 
 def check_ast(cls):
     # Hack to let us find out when/where we've forgotten a line number
@@ -48,6 +54,7 @@ def check_ast(cls):
         def wrapper(self, *args, **kwargs):
             result = func(self, *args, **kwargs)
             if isinstance(result, ast.AST):
+               # print(astor.to_source(result, add_line_information=True))
                 try:
                     astpretty.pformat(result, indent="| ")
                 except Exception as e:
@@ -65,34 +72,22 @@ def check_ast(cls):
     return cls
 
 
-# @check_ast
+@check_ast
 @v_args(meta=True, inline=True)
 class OpenscadToPy(Transformer):
     def start(self, meta, *args):
         argsnew = self._normalize_block(args)
-        #Weirdly I seem to be required to run my imports inside Main, something
-        # to do with how python/the-AST is handling global state.
-        # Attemps to get around this lead to globals not working...
-        
-        names = ("ChildContext","module_echo")
-        imports = []
-        for name in names:
-            imports.append(ast.alias(name=name, asname=None, lineno=0, col_offset=0))
-
-        argsnew.insert(
-            0,
-
-            ast.ImportFrom(
-                module="pysdfscad.openscad_builtins",
-                lineno=0,
-                col_offset=0,
-                names=imports,
-                level=0,
-            ),
-        )
 
         return ast.Module(
+
             [
+                ast.ImportFrom(
+                    module="pysdfscad.openscad_builtins",
+                    lineno=0,
+                    col_offset=0,
+                    names=[ast.alias(name="*", asname=None, lineno=0, col_offset=0),],
+                    level=0,
+                ),
                 ast.FunctionDef(
                     name="main",
                     decorator_list=[],
@@ -124,8 +119,8 @@ class OpenscadToPy(Transformer):
         function_definition = []
         for arg in expressions:
             if isinstance(arg, ast.Call):
-                # "When an expression, such as a function call, appears as a statement by itself (an expression statement), with its return value not used or stored, it is wrapped in this container."
-                # So we need to wrap lone calls that are just hanging out on a line in an Expr
+                # Wrap modules in a yield from, so we can unwind our openscad tree into one
+                # top level piece of geometry.
                 if arg.func.id.startswith("module_"):
                     new_expression.append(
                         ast.Expr(
@@ -136,6 +131,8 @@ class OpenscadToPy(Transformer):
                             col_offset=arg.col_offset,
                         )
                     )
+                # "When an expression, such as a function call, appears as a statement by itself (an expression statement), with its return value not used or stored, it is wrapped in this container."
+                # So we need to wrap lone calls that are just hanging out on a line in an Expr
                 else:
                     new_expression.append(
                         ast.Expr(
@@ -156,17 +153,22 @@ class OpenscadToPy(Transformer):
         block_children = self._normalize_block(block)
         if not block_children:
 
+            # No-op generator, we can't just "return None" or "pass" because than we're not a generator.
             block_children = [
-                ast.Return(value=None, lineno=meta.line, col_offset=meta.column),
                 ast.Expr(
-                    # We need to do some weirdness with having a reuturn followed by a yield, let python get
-                    # confused about whether this function is a generator or not.
-                    value=ast.Yield(
-                        value=None, lineno=meta.line, col_offset=meta.column
+                    value=ast.YieldFrom(
+                        value=ast.Tuple(
+                            elts=[],
+                            ctx=ast.Load(),
+                            lineno=meta.line,
+                            col_offset=meta.column,
+                        ),
+                        lineno=meta.line,
+                        col_offset=meta.column,
                     ),
                     lineno=meta.line,
                     col_offset=meta.column,
-                ),
+                )
             ]
 
         args, kwargs = args
@@ -220,7 +222,7 @@ class OpenscadToPy(Transformer):
                 ast.withitem(
                     context_expr=ast.Call(
                         ast.Name(
-                            id="ChildContext",
+                            id="NewChildContext",
                             ctx=ast.Load(),
                             lineno=meta.line,
                             col_offset=meta.column,
@@ -254,8 +256,23 @@ class OpenscadToPy(Transformer):
             col_offset=meta.column,
         )
 
-    def combined_args(self, meta, args=list(), kwargs=dict()):
-        print("kw_args",args,kwargs)
+    def combined_args(self, meta, *args_orig):
+        if len(args_orig) == 2:
+            args, kwargs = args_orig
+        elif len(args_orig) == 1:
+            if isinstance(args_orig[0][0], ast.keyword):
+                args = []
+                kwargs = args_orig[0]
+            else:
+                args = args_orig[0]
+                kwargs = []
+        elif len(args_orig) == 0:
+            args = []
+            kwargs = []
+        else:
+            raise Exception(
+                "That's the wrong nuber of args, something has gone very wrong"
+            )
         return args, kwargs
 
     def kwargs(self, meta, *children):
@@ -264,20 +281,19 @@ class OpenscadToPy(Transformer):
     def args(self, meta, *children):
         return children
 
-    def ESCAPED_STRING(self,token):
+    def ESCAPED_STRING(self, token):
         return ast.Constant(
             token.value, None, lineno=token.line, col_offset=token.column
         )
 
-
     def number(self, meta, token):
         return ast.Constant(
-            int(token.value), None, lineno=meta.line, col_offset=meta.column
+            float(token.value), None, lineno=meta.line, col_offset=meta.column
         )
 
     def var(self, meta, token):
         return ast.Name(
-            id=token.value, ctx=ast.Load(), lineno=token.line, col_offset=token.column
+            id="var_"+token.value, ctx=ast.Load(), lineno=token.line, col_offset=token.column
         )
 
     def kwargvalue(self, meta, token, value):
@@ -289,7 +305,7 @@ class OpenscadToPy(Transformer):
         return ast.Assign(
             targets=[
                 ast.Name(
-                    id=name.value,
+                    id="var_"+name.value,
                     ctx=ast.Store(),
                     lineno=name.line,
                     col_offset=name.column,
@@ -375,7 +391,6 @@ class OpenscadToPy(Transformer):
             )
 
         defaults = [i.value for i in kwargs]
-        #        print("kwargs",kwargs)
         return ast.FunctionDef(
             name="function_" + name.value,
             decorator_list=[],
@@ -397,20 +412,25 @@ class OpenscadToPy(Transformer):
             col_offset=meta.column,
         )
 
+    def vector(self,meta,args):
+        return ast.List(list(args),ctx=ast.Load(),
+            lineno=meta.line,
+            col_offset=meta.column,
+                       )
+
     @v_args(meta=False, inline=False)
     def __default__(self, data, children, meta):
-        print("Undandled",data,children,meta)
         logger.warning(f"unhandled parse {data}, {children}, {meta}")
         return Discard
         return Tree(data, children, meta)
 
 
 parser = Lark.open("openscad.lark", rel_to=__file__, propagate_positions=True)
-
 example_text = """
 foo=1;
 echo("foo");
 """
+
 
 from loguru import logger  # type: ignore
 from meta.asttools import print_ast
@@ -420,6 +440,15 @@ from meta.asttools import print_ast
 def main():
     import astor  # type: ignore
     import astpretty
+
+    example_py = """
+from pysdfscad.openscad_builtins import *
+"""
+    if example_py:
+        print("====Python AST=====")
+        result = ast.parse(example_py)
+        print(astor.dump_tree(result, indentation="| "))
+        print("-------------------")
 
     tree = parser.parse(example_text)
     result = OpenscadToPy().transform(tree)
@@ -437,18 +466,17 @@ def main():
     print("-----------")
     print("===Running generated code===")
     scad_locals = {}
-    scad_globals = {}
-    eval(
+    exec(
         compile(
             result,
             filename="<ast>",
             mode="exec",
         ),
-        scad_globals,
         scad_locals,
     )
-    print(scad_locals["main"]())
-    print(*scad_locals["main"]())
+    print(scad_locals['main']())
+    print(*scad_locals['main']())
 
 
-main()
+if __name__ == '__main__':
+        main()

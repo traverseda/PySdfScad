@@ -29,7 +29,7 @@ dir_path = os.path.dirname(os.path.realpath(__file__))
 
 def geometry_testcase(func):
     def wrapped(*args,test=True,**kwargs):
-        out = func(*args,**kwargs)
+        out = func(*args,**kwargs)[0]
         if test==True:
             tmp = tempfile.NamedTemporaryFile(suffix=".stl")
             out.save(tmp.name)
@@ -53,7 +53,6 @@ def file_digest(file):
     while chunk := file.read(8192):
         file_hash.update(chunk)
     return file_hash.digest()
-
 
 def main():
     """Generate models for test cases...

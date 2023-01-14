@@ -1,4 +1,4 @@
-?start: value*
+start: value*
 
 ?value: "$"? NAME "=" sum ";"    -> assign_var
       | ifelse
