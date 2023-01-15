@@ -20,13 +20,29 @@ def colorize_ansi(source):
     from pygments.formatters import TerminalTrueColorFormatter
     return highlight(source, PythonLexer(), TerminalTrueColorFormatter())
 
+def colorize_html(source):
+    from pygments import highlight
+    from pygments.lexers import PythonLexer
+    from pygments.formatters import HtmlFormatter
+    return highlight(source, PythonLexer(), HtmlFormatter())
+
 class OpenscadFile():
     def __init__(self,file=None):
         self.text=""
         self.file=file
+        self.compiled=None
+        self.reload()
+
+    def reload(self):
         if self.file:
             self.text=self.file.read_text()
-        self.compiled=None
+        else:
+            self.text=""
+        return self
+
+    def save(self):
+        self.file.write_text(self.text)
+        return self
 
     def ast(self):
         parser = Lark.open("openscad.lark", rel_to=__file__, propagate_positions=True)
@@ -47,8 +63,8 @@ class OpenscadFile():
             scad_locals,
         )
         return list(scad_locals['main']())
-    def as_ast(self,indentation="  "):
-        return astor.dump_tree(self.ast(), indentation=indentation)
+    def as_ast(self):
+        return astor.dump_tree(self.ast())
     def as_python(self):
         return astor.to_source(self.ast(), add_line_information=True)
 

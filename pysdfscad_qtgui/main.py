@@ -2,13 +2,16 @@ import sys, os
 import textwrap
 import pkgutil
 import pysdfscad
-from pysdfscad.main import EvalOpenscad, openscad_parser
+#from pysdfscad.main import EvalOpenscad, openscad_parser
+from pysdfscad.main import OpenscadFile, colorize_html
 from loguru import logger
 from pathlib import Path
 
+from PyQt5 import QtWidgets, uic, QtCore
 from PyQt5.Qt import QColor, QApplication, QFont, QFontMetrics
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QMenuBar, QMenu,\
-        QAction, QHBoxLayout, QWidget, QSplitter, QFileDialog, QShortcut, QMessageBox
+        QAction, QHBoxLayout, QWidget, QSplitter, QFileDialog, QShortcut, QMessageBox, QFrame,\
+        QGridLayout, QTextEdit
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt, QSettings, QPoint, QSize, QThread, pyqtSlot, pyqtSignal, QObject
 from PyQt5.QtGui import QKeySequence
@@ -18,6 +21,7 @@ import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import numpy as np
 
+from PyQt5 import Qsci
 from PyQt5.Qsci import QsciScintilla
 from PyQt5.Qsci import QsciLexerCustom
 from pyqtconsole.console import PythonConsole
@@ -216,7 +220,6 @@ example_intersection();
 """
 
 from pysdfscad_qtgui.logWidget import QTextEditLogger
-log_format = "<level>{level}</level> - {extra} - {message}"
 from contextlib import redirect_stdout
 
 class LoggerWriter:
@@ -236,6 +239,118 @@ class LoggerWriter:
 
 import os
 
+ui_dir=Path(__file__).parent
+
+class MainUi(QMainWindow):
+    def __init__(self):
+        super().__init__() # Call the inherited classes __init__ method
+        uic.loadUi( ui_dir/'main.ui', self) # Load the .ui file
+        self.readSettings()
+
+        self.openscadFile=OpenscadFile()
+        self.mesh=None
+
+        self.preview3d=gl.GLViewWidget(self.sideSplitter)
+        self.preview3d.setCameraPosition(distance=40)
+
+        self.logger=QTextEditLogger(self.sideSplitter)
+        self._logger_handle_id=logger.add(self.logger, colorize=True)
+
+        self.editor=EditorAll()
+        self.editor.setText(EXAMPLE_TEXT)
+
+        self.tabWidget.addTab(self.editor,"Source")
+
+        self.astPreview=QsciScintilla()
+        self.astPreview.setIndentationGuides(True)
+        self.astPreview.setIndentationsUseTabs(False)
+        self.astPreview.setIndentationWidth(4)
+        self.astPreview.setLexer(Qsci.QsciLexerPython(self.astPreview))
+        self.astPreview.setReadOnly(True)
+        self.astPreview.update_in_place=False
+        self.tabWidget.addTab(self.astPreview,"AST")
+
+        self.pythonPreview=QsciScintilla()
+        self.pythonPreview.setIndentationGuides(True)
+        self.pythonPreview.setIndentationsUseTabs(False)
+        self.pythonPreview.setIndentationWidth(4)
+        self.pythonPreview.setLexer(Qsci.QsciLexerPython(self.pythonPreview))
+        self.pythonPreview.setReadOnly(True)
+        self.pythonPreview.update_in_place=False
+        self.tabWidget.addTab(self.pythonPreview,"Python")
+
+        self._connectActions()
+
+    def _connectActions(self):
+        # Connect File actions
+#        self.newAction.triggered.connect(self.newFile)
+#        self.openAction.triggered.connect(self.openFile)
+#        self.saveAction.triggered.connect(self.saveFile)
+#        self.saveAsAction.triggered.connect(self.saveFileAs)
+#        self.exitAction.triggered.connect(self.close)
+        self.actionRender.triggered.connect(self.render)
+#        self.exportMeshAction.triggered.connect(self.exportMesh)
+        # Connect Edit actions
+#        self.copyAction.triggered.connect(self.copyContent)
+#        self.pasteAction.triggered.connect(self.pasteContent)
+#        self.cutAction.triggered.connect(self.cutContent)
+        # Connect Help actions
+#        self.helpContentAction.triggered.connect(self.helpContent)
+#        self.aboutAction.triggered.connect(self.about)
+
+
+    @logger.catch
+    def _render(self):
+        self.openscadFile.text=self.editor.text()
+        self.result = self.openscadFile.run()[0]
+        if not self.result:
+            interpreter.logger.info("No top level geometry to render")
+        else:
+            import numpy as np
+            with redirect_stdout(LoggerWriter(logger.opt(depth=1).info)):
+                points = self.result.generate()
+            points, cells = np.unique(points, axis=0, return_inverse=True)
+            cells = cells.reshape((-1, 3))
+            self.mesh=(points,cells)
+    
+            meshdata = gl.MeshData(vertexes=points, faces=cells)
+            mesh = gl.GLMeshItem(meshdata=meshdata,
+                                 smooth=False, drawFaces=True,
+                                 shader='normalColor',
+                                 drawEdges=False, color = (0.2,0.8,0.2,1), edgeColor=(0.2, 0.5, 0.2, 1)
+                                 )
+            self.preview3d.clear()
+            g = gl.GLGridItem()
+
+            g.setSize(200, 200)
+            g.setSpacing(10, 10)
+            self.preview3d.addItem(g)
+            self.preview3d.addItem(mesh)
+
+
+    def render(self):
+        self.logger._text=[]
+        logger.info(f"Started new render with file {self.openscadFile.file}")
+        thread = Thread(target=self._render)
+        thread.start()
+        self.astPreview.setText(self.openscadFile.as_ast())
+        self.pythonPreview.setText(self.openscadFile.as_python())
+
+    def closeEvent(self, event):
+        logger.remove(self._logger_handle_id)
+        settings = QSettings()
+        settings.setValue('geometry',self.saveGeometry())
+        settings.setValue('windowState',self.saveState())
+        super().closeEvent(event)
+
+    def readSettings(self):
+        settings = QSettings()
+        try:
+            self.restoreGeometry(settings.value("geometry"))
+            self.restoreState(settings.value("windowState"))
+        except:
+            logger.warning("Couldn't restore window state from settings")
+
 class Window(QMainWindow):
     """Main Window."""
     def __init__(self, parent=None):
@@ -246,15 +361,16 @@ class Window(QMainWindow):
         self.move(self.settings.value("pos", QPoint(50, 50)))
 
         self.logger=QTextEditLogger(QtWidgets.QTextEdit())
-        logger.add(self.logger, colorize=True, format=log_format)
+        logger.add(self.logger, colorize=True)
         #for color in ("red","green","cyan","blue","black","magenta","white","yellow","underline","dim","normal","italic","strike",):
         #    logger.info(f"<bold><{color}>{color}</{color}></bold>")
 
-        self.file=None
+        self.openscadFile=OpenscadFile()
+
         self.result=None
         self.mesh=None
         self.example_actions=set()
-        self.setWindowTitle(f"{self.file} - pySdfScad")
+        self.setWindowTitle(f"{self.openscadFile.file} - pySdfScad")
         self.editor = EditorAll()
         self.editor.setText(EXAMPLE_TEXT)
         self.preview=gl.GLViewWidget()
@@ -272,10 +388,6 @@ class Window(QMainWindow):
         self.centralLayout.addWidget(self.editor)
         self.centralLayout.addWidget(self.sidebar)
 
-#        widget = QWidget()
-#        widget.setLayout(self.centralLayout)
-
-#        self.setCentralWidget(widget)
         self.setCentralWidget(self.centralLayout)
         self._createActions()
         self._createMenuBar()
@@ -306,20 +418,21 @@ class Window(QMainWindow):
         dlg.selectNameFilter("Scad files (*.scad)")
         if dlg.exec_():
             filename = dlg.selectedFiles()[0]
-            self.file=Path(filename)
-            self.editor.setText(self.file.read_text())
-        self.setWindowTitle(f"{self.file} - pySdfScad")
+            self.openscadFile.file=Path(filename)
+            self.openscadFile.reload()
+            self.editor.setText(self.openscadFile.text)
+        self.setWindowTitle(f"{self.openscadFile.file} - pySdfScad")
 
     def newFile(self):
-        self.file=None
-        self.editor.setText("")
+        self.openscadFile.file=None
+        self.openscadFile.reload()
 
     def saveFileAs(self):
         dlg = QFileDialog()
         dlg.setFileMode(QFileDialog.AnyFile)
         if dlg.exec_():
             filename = dlg.selectedFiles()[0]
-            self.file=Path(filename)
+            self.openscadFile=Path(filename)
             self.saveFile()
         self.setWindowTitle(f"{self.file} - pySdfScad")
 
@@ -327,58 +440,10 @@ class Window(QMainWindow):
         if not self.file:
             self.saveFileAs()
         else:
-            self.file.write_text(self.editor.text())
+            self.openscadFile.text=self.editor.text()
+            self.openscadFile.save()
 
-    def _render(self):
-        tree = openscad_parser.parse(self.editor.text())
-        interpreter=EvalOpenscad()
-        self.result = interpreter.visit(tree)
-        if not self.result:
-            interpreter.logger.info("No top level geometry to render")
-        else:
-            import numpy as np
-            with redirect_stdout(LoggerWriter(logger.info)):
-                points = self.result.generate()
-            points, cells = np.unique(points, axis=0, return_inverse=True)
-            cells = cells.reshape((-1, 3))
-            self.mesh=(points,cells)
 
-            meshdata = gl.MeshData(vertexes=points, faces=cells)
-            mesh = gl.GLMeshItem(meshdata=meshdata,
-                                 smooth=False, drawFaces=True,
-                                 shader='normalColor',
-                                 drawEdges=False, color = (0.2,0.8,0.2,1), edgeColor=(0.2, 0.5, 0.2, 1)
-                                 )
-            self.preview.clear()
-            g = gl.GLGridItem()
-
-            g.setSize(200, 200)
-            g.setSpacing(10, 10)
-            self.preview.addItem(g)
-            self.preview.addItem(mesh)
-
-    def render(self):
-        self.logger.text=[]
-        logger.info(f"Started new render with file {self.file}")
-        thread = Thread(target=self._render)
-        thread.start()
-
-    def _connectActions(self):
-        # Connect File actions
-        self.newAction.triggered.connect(self.newFile)
-        self.openAction.triggered.connect(self.openFile)
-        self.saveAction.triggered.connect(self.saveFile)
-        self.saveAsAction.triggered.connect(self.saveFileAs)
-        self.exitAction.triggered.connect(self.close)
-        self.renderAction.triggered.connect(self.render)
-        self.exportMeshAction.triggered.connect(self.exportMesh)
-        # Connect Edit actions
-#        self.copyAction.triggered.connect(self.copyContent)
-#        self.pasteAction.triggered.connect(self.pasteContent)
-#        self.cutAction.triggered.connect(self.cutContent)
-        # Connect Help actions
-#        self.helpContentAction.triggered.connect(self.helpContent)
-#        self.aboutAction.triggered.connect(self.about)
 
 
     def _createActions(self):
@@ -462,7 +527,8 @@ class Window(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
-    win = Window()
+#    win = Window()
+    win=MainUi()
     win.show()
     sys.exit(app.exec_())
 

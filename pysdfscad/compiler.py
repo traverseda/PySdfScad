@@ -240,18 +240,9 @@ class OpenscadToPy(Transformer):
         )
         yield from body
 
-    #        yield ast.Delete(
-    #            targets=[
-    #                ast.Name(
-    #                    id="children",
-    #                    ctx=ast.Del(),
-    #                    lineno=meta.line,
-    #                    col_offset=meta.column,
-    #                ),
-    #            ],
-    #            lineno=meta.line,
-    #            col_offset=meta.column,
-    #        )
+    def COMMENT(self,token):
+        return ast.Expr(ast.Constant(token.value,lineno=token.line,col_offset=token.column),
+                        lineno=token.line,col_offset=token.column)
 
     def function_call(self, meta, f_name: Token, args):
         args, kwargs = args
@@ -430,6 +421,10 @@ class OpenscadToPy(Transformer):
             col_offset=meta.column,
         )
 
+    def neg(self,meta,token):
+        token.value = token.value*-1
+        return token
+
     def block(self, meta, *children):
         return children
 
@@ -441,7 +436,32 @@ class OpenscadToPy(Transformer):
             )
 
         defaults = [i.value for i in kwargs]
-        body = list(self._normalize_block(body))
+        inner_body = list(self._normalize_block(body))
+
+        body = [ast.FunctionDef(
+            name=name.value+"_inner",
+            decorator_list=[],
+            body=inner_body,
+            args=ast.arguments(
+                args=args,
+                posonlyargs=[],
+                kwonlyargs=[],
+                kw_defaults=[],
+                defaults=defaults,
+            ),
+
+            lineno=meta.line,
+            col_offset=meta.column,),
+
+            ast.Return(
+                value=ast.Name(name.value+"_inner",ctx=ast.Load(),
+                lineno=meta.line,
+                col_offset=meta.column,
+                               ),
+                lineno=meta.line,
+                col_offset=meta.column,
+            )
+                ]
         yield ast.FunctionDef(
             name="module_" + name.value,
             decorator_list=[],
