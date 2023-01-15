@@ -1,46 +1,31 @@
 import sdf
-from functools import reduce
+from functools import reduce, wraps
 import inspect
 from loguru import logger
 import itertools
 import lark
 import math
 
+
 def module_echo(*args,**kwargs):
-    out = [str(i) for i in args]
-    for k,v in kwargs.items():
-        out.append(k+"="+str(v))
-    logger.opt(depth=1).info("ECHO: "+", ".join(out))
-    return
-    yield
+    def inner(children=lambda:()):
+        out = [str(i) for i in args]
+        for k,v in kwargs.items():
+            k=k.removeprefix("var_")
+            out.append(k+"="+str(v))
+        logger.opt(depth=1).info("ECHO: "+", ".join(out))
+        return
+        yield
+    return inner
 
 var_undef = None
 var_true = True
 var_false = False
 
-def module_children():
-    return
-    yield
-
-class NewChildContext():
-    """Manages child context for openscad operators, by saving the old
-    context and restoring it when you exit the context handler.
-    """
-
-    def __enter__(self):
-        pass
-#        global module_children
-        print("Enter childcontext",module_children)
-#        self.old_children = module_children
-
-    def __exit__(self, exception_type, exception_value, traceback):
-        pass
-#        global module_children
-        print("Exit  childcontext",module_children)
-#        module_children = self.old_children
-
-def module_sphere(r):
-    yield sdf.sphere(r)
+def module_sphere(var_r):
+    def inner(children=lambda:()):
+        yield sdf.sphere(var_r)
+    return inner
 
 def cylinder(context,r=0,r1=None,r2=None,h=None,center=False):
     if r1 ==None : r1=r
@@ -66,11 +51,12 @@ def for_op(context,**kwargs):
         children.extend(context.functions['children_list']())
     return children
 
-def module_union(smooth=0):
-    children = list(module_children())
-    print("module_children",children)
-    if not children: return
-    yield reduce(lambda a,b: sdf.union(a,b,k=smooth), children)
+def module_union(smooth=1):
+    def inner(children=lambda:()):
+        children = list(children())
+        if not children: return
+        yield reduce(lambda a,b: sdf.union(a,b,k=smooth), children)
+    return inner
 
 def blend(context,ratio=0.5):
     children=context.functions['children_list']()

@@ -1,4 +1,4 @@
-from pysdfscad.main import OpenscadFile
+from pysdfscad.main import OpenscadFile,colorize_ansi
 import logging
 import pytest
 from _pytest.logging import caplog as _caplog
@@ -16,11 +16,10 @@ def caplog(_caplog):
     yield _caplog
     logger.remove(handler_id)
 
-
 def eval_scad(data):
     interpreter = OpenscadFile()
     interpreter.text = data
-#    print(interpreter.as_python_ansi())
+    print(colorize_ansi(interpreter.as_python()))
     out = interpreter.run()
     return out
 

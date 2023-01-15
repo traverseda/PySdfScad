@@ -5,6 +5,7 @@ start: value*
       | function_def
       | module_def
       | COMMENT
+      | forloop
       | operator
 
 ?sum: product
@@ -34,6 +35,7 @@ start: value*
      | vector_index
 
 vector_index: sum "[" sum "]"
+forloop: "for " "(" combined_args ")" block -> for_loop
 operator: NAME "(" combined_args ")" block -> operator_call
 block: operator
     | "{" value* "}" ";"?

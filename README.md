@@ -64,7 +64,7 @@ exception handling. We can also, furthur down the line, do things like import/in
 an openscad file from another language (like python, or a theoretical future openscad-ish
 language).
 
-So yeah, more complicated than it probably needed to be, but I'm hopeful I can some cool
+More complicated than it probably needed to be, but I'm hopeful I can do some cool
 stuff with it in the future. The original (unfinished) interpreter code was also a handful,
 and I don't think this is all that much more unreadable.
 

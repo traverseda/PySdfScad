@@ -38,11 +38,14 @@ looks good or is idiomatic.
 """
 
 from lark import Lark, Transformer, v_args, Tree, Token, Discard
+import types
 import ast
+import itertools
 from meta.asttools import print_ast  # type: ignore
 from pathlib import Path
 import functools
 import astor
+
 
 def check_ast(cls):
     # Hack to let us find out when/where we've forgotten a line number
@@ -54,7 +57,7 @@ def check_ast(cls):
         def wrapper(self, *args, **kwargs):
             result = func(self, *args, **kwargs)
             if isinstance(result, ast.AST):
-               # print(astor.to_source(result, add_line_information=True))
+                # print(astor.to_source(result, add_line_information=True))
                 try:
                     astpretty.pformat(result, indent="| ")
                 except Exception as e:
@@ -76,16 +79,17 @@ def check_ast(cls):
 @v_args(meta=True, inline=True)
 class OpenscadToPy(Transformer):
     def start(self, meta, *args):
-        argsnew = self._normalize_block(args)
+        argsnew = list(self._normalize_block(args))
 
         return ast.Module(
-
             [
                 ast.ImportFrom(
                     module="pysdfscad.openscad_builtins",
                     lineno=0,
                     col_offset=0,
-                    names=[ast.alias(name="*", asname=None, lineno=0, col_offset=0),],
+                    names=[
+                        ast.alias(name="*", asname=None, lineno=0, col_offset=0),
+                    ],
                     level=0,
                 ),
                 ast.FunctionDef(
@@ -117,11 +121,15 @@ class OpenscadToPy(Transformer):
         new_expression = []
         module_definition = []
         function_definition = []
+        #logger.opt(depth=1).info(f"{expressions}")
         for arg in expressions:
-            if isinstance(arg, ast.Call):
+            if isinstance(arg, types.GeneratorType):
+                yield from self._normalize_block(arg)
+
+            elif isinstance(arg, ast.Call):
                 # Wrap modules in a yield from, so we can unwind our openscad tree into one
                 # top level piece of geometry.
-                if arg.func.id.startswith("module_"):
+                if arg.func.func.id.startswith("module_"):
                     new_expression.append(
                         ast.Expr(
                             ast.YieldFrom(
@@ -147,99 +155,103 @@ class OpenscadToPy(Transformer):
                     function_definition.append(arg)
             else:
                 new_expression.append(arg)
-        return [*function_definition, *module_definition, *new_expression]
+        yield from [*function_definition, *module_definition, *new_expression]
 
     def operator_call(self, meta, f_name: Token, args, block):
-        block_children = self._normalize_block(block)
-        if not block_children:
+        block_children = list(self._normalize_block(block))
 
-            # No-op generator, we can't just "return None" or "pass" because than we're not a generator.
-            block_children = [
-                ast.Expr(
-                    value=ast.YieldFrom(
-                        value=ast.Tuple(
-                            elts=[],
+        args, kwargs = args
+
+        if f_name.value == "children":
+            yield ast.Expr(
+                value=ast.YieldFrom(
+                    ast.Call(
+                        ast.Name(
+                            id="children",
                             ctx=ast.Load(),
-                            lineno=meta.line,
-                            col_offset=meta.column,
+                            lineno=f_name.line,
+                            col_offset=f_name.column,
                         ),
+                        args=[*args],
+                        keywords=list(kwargs),
                         lineno=meta.line,
                         col_offset=meta.column,
                     ),
                     lineno=meta.line,
                     col_offset=meta.column,
-                )
-            ]
-
-        args, kwargs = args
-
-        if f_name.value == "children":
-            return ast.Call(
-                ast.Name(
-                    id="module_" + f_name.value,
-                    ctx=ast.Load(),
-                    lineno=f_name.line,
-                    col_offset=f_name.column,
                 ),
-                args=[*args],
-                keywords=list(kwargs),
                 lineno=meta.line,
                 col_offset=meta.column,
             )
-
-        body = [
-            ast.FunctionDef(
-                name="module_children",
+            return
+        call_child = []
+        if block_children:
+            yield ast.FunctionDef(
+                name="children",
                 decorator_list=[],
                 body=block_children,
                 args=ast.arguments(
                     args=[],
                     posonlyargs=[],
                     kwonlyargs=[],
+                    # kwarg=ast.arg(arg='kwargs', annotation=None, type_comment=None,
+                    #                lineno=meta.line,
+                    #                col_offset=meta.column,
+                    # ),
                     kw_defaults=[],
                     defaults=[],
                 ),
                 lineno=meta.line,
                 col_offset=meta.column,
-            ),
-            ast.Call(
+            )
+            call_child = [
                 ast.Name(
-                    id="module_" + f_name.value,
+                    id="children",
                     ctx=ast.Load(),
                     lineno=f_name.line,
                     col_offset=f_name.column,
                 ),
-                args=[*args],
-                keywords=list(kwargs),
-                lineno=meta.line,
-                col_offset=meta.column,
-            ),
-        ]
-        body = self._normalize_block(body)
-        # children_arg=ast.arg()
-        return ast.With(
-            items=[
-                ast.withitem(
-                    context_expr=ast.Call(
-                        ast.Name(
-                            id="NewChildContext",
-                            ctx=ast.Load(),
-                            lineno=meta.line,
-                            col_offset=meta.column,
-                        ),
-                        args=[],
-                        keywords=[],
-                        lineno=meta.line,
-                        col_offset=meta.column,
+            ]
+
+        body = [
+            ast.Call(
+                func=ast.Call(
+                    ast.Name(
+                        id="module_" + f_name.value,
+                        ctx=ast.Load(),
+                        lineno=f_name.line,
+                        col_offset=f_name.column,
                     ),
+                    args=[*args],
+                    keywords=list(kwargs),
                     lineno=meta.line,
                     col_offset=meta.column,
                 ),
-            ],
-            body=body,
-            lineno=meta.line,
-            col_offset=meta.column,
+                args=call_child,
+                keywords=[],
+                lineno=meta.line,
+                col_offset=meta.column,
+            )
+        ]
+        body = list(
+            self._normalize_block(
+                body,
+            )
         )
+        yield from body
+
+    #        yield ast.Delete(
+    #            targets=[
+    #                ast.Name(
+    #                    id="children",
+    #                    ctx=ast.Del(),
+    #                    lineno=meta.line,
+    #                    col_offset=meta.column,
+    #                ),
+    #            ],
+    #            lineno=meta.line,
+    #            col_offset=meta.column,
+    #        )
 
     def function_call(self, meta, f_name: Token, args):
         args, kwargs = args
@@ -275,6 +287,62 @@ class OpenscadToPy(Transformer):
             )
         return args, kwargs
 
+    def for_loop(self, meta, args, block):
+        args, kwargs = args
+        block = list(self._normalize_block(block))
+        assert not args
+        target = []
+        values = []
+        for keyword in kwargs:
+            target.append(
+                ast.Name(
+                    id=keyword.arg,
+                    ctx=ast.Store(),
+                    lineno=meta.line,
+                    col_offset=meta.column,
+                )
+            )
+            values.append(keyword.value)
+        if len(target) > 1:
+            target = ast.Tuple(
+                target, ast.Store(), lineno=meta.line, col_offset=meta.column
+            )
+        else:
+            target = target[0]
+        if len(values) > 1:
+            values= ast.Call(
+                    func=ast.Attribute(
+                        value=ast.Name(
+                            id="itertools",
+                            ctx=ast.Load(),
+                            lineno=meta.line,
+                            col_offset=meta.column,
+                        ),
+                        attr="product",
+                        ctx=ast.Load(),
+                        lineno=meta.line,
+                        col_offset=meta.column,
+                    ),
+                    args=values,
+                    keywords=[],
+                    lineno=meta.line,
+                    col_offset=meta.column,
+                    body=block,
+                )
+        else:
+            values = values[0]
+        result = ast.For(
+            target=target,
+            iter=values,
+            body=block,
+            orelse=[],
+            lineno=meta.line,
+            col_offset=meta.column,
+        )
+        yield result
+        print("=======for_ast========")
+        print(astor.dump_tree(result, indentation="| "))
+
     def kwargs(self, meta, *children):
         return children
 
@@ -293,19 +361,25 @@ class OpenscadToPy(Transformer):
 
     def var(self, meta, token):
         return ast.Name(
-            id="var_"+token.value, ctx=ast.Load(), lineno=token.line, col_offset=token.column
+            id="var_" + token.value,
+            ctx=ast.Load(),
+            lineno=token.line,
+            col_offset=token.column,
         )
 
     def kwargvalue(self, meta, token, value):
         return ast.keyword(
-            arg=token.value, value=value, lineno=token.line, col_offset=token.column
+            arg="var_" + token.value,
+            value=value,
+            lineno=token.line,
+            col_offset=token.column,
         )
 
     def assign_var(self, meta, name, value):
-        return ast.Assign(
+        yield ast.Assign(
             targets=[
                 ast.Name(
-                    id="var_"+name.value,
+                    id="var_" + name.value,
                     ctx=ast.Store(),
                     lineno=name.line,
                     col_offset=name.column,
@@ -337,7 +411,7 @@ class OpenscadToPy(Transformer):
         newargs = []
         for arg in args:
             newargs.append(
-                ast.arg(arg=arg.value, lineno=arg.line, col_offset=arg.column)
+                ast.arg(arg="var_" + arg.value, lineno=arg.line, col_offset=arg.column)
             )
         return newargs, kwargs
 
@@ -367,8 +441,8 @@ class OpenscadToPy(Transformer):
             )
 
         defaults = [i.value for i in kwargs]
-        body = self._normalize_block(body)
-        return ast.FunctionDef(
+        body = list(self._normalize_block(body))
+        yield ast.FunctionDef(
             name="module_" + name.value,
             decorator_list=[],
             body=body,
@@ -391,7 +465,7 @@ class OpenscadToPy(Transformer):
             )
 
         defaults = [i.value for i in kwargs]
-        return ast.FunctionDef(
+        yield ast.FunctionDef(
             name="function_" + name.value,
             decorator_list=[],
             body=[
@@ -412,11 +486,13 @@ class OpenscadToPy(Transformer):
             col_offset=meta.column,
         )
 
-    def vector(self,meta,args):
-        return ast.List(list(args),ctx=ast.Load(),
+    def vector(self, meta, args):
+        return ast.List(
+            list(args),
+            ctx=ast.Load(),
             lineno=meta.line,
             col_offset=meta.column,
-                       )
+        )
 
     @v_args(meta=False, inline=False)
     def __default__(self, data, children, meta):
@@ -442,7 +518,10 @@ def main():
     import astpretty
 
     example_py = """
-from pysdfscad.openscad_builtins import *
+for x,y in itertools.product(((1,2))):
+    pass
+def children(**kwargs):
+    setlocals(kwargs)
 """
     if example_py:
         print("====Python AST=====")
@@ -474,9 +553,9 @@ from pysdfscad.openscad_builtins import *
         ),
         scad_locals,
     )
-    print(scad_locals['main']())
-    print(*scad_locals['main']())
+    print(scad_locals["main"]())
+    print(*scad_locals["main"]())
 
 
-if __name__ == '__main__':
-        main()
+if __name__ == "__main__":
+    main()

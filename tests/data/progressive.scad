@@ -1,7 +1,2 @@
-foo=3;
-union(){
-    foo=14;
-    echo(foo);
-}
-echo(foo);
+for (x=[1,2,3],y=["a","b","c"])echo(x,y);
 
