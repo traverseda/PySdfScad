@@ -186,7 +186,7 @@ module example_intersection()
 {
 	intersection() {
 		difference() {
-			union() {
+			union(smooth=10) {
 				cube([30, 30, 30], center = true);
 				translate([0, 0, -25])
 					cube([15, 15, 50], center = true);
