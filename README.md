@@ -66,7 +66,9 @@ language).
 
 More complicated than it probably needed to be, but I'm hopeful I can do some cool
 stuff with it in the future. The original (unfinished) interpreter code was also a handful,
-and I don't think this is all that much more unreadable.
+and I don't think this is all that much more unreadable. The output is generally more easily
+debugged, as we have a nicer intermediate state (python code) than we did when using an
+interpreter.
 
 
 ## It's still alpha software
