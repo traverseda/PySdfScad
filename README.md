@@ -20,7 +20,7 @@ outside of linux (or at all). With that in mind...
 
 Ensure that [pipx](https://pypa.github.io/pipx/) is installed and working, then run
 
-    pipx install git+https://github.com/traverseda/PySdfScad.git#"['qtgui']"
+    pipx install "pysdfscad[qtgui] @ git+https://github.com/traverseda/PySdfScad.git"
 
 # Faq
 
