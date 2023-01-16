@@ -15,6 +15,13 @@ of numpy.
 
 # Instalation
 
+This is early alpha software, so there aren't any nice installers and it may not even work
+outside of linux (or at all). With that in mind...
+
+Ensure that [pipx](https://pypa.github.io/pipx/) is installed and working, then run
+
+    pipx install git+https://github.com/traverseda/PySdfScad.git#"['qtgui']"
+
 # Faq
 
 ## Differences from openscad
