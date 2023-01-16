@@ -60,6 +60,7 @@ def replace_ansi(text):
     text = text.replace("\x1b[4m",'<span style="text-decoration: underline;">')
     text = text.replace("\x1b[30m",'<span style="color:black;">')
     text = text.replace("\x1b[31m",'<span style="color:red;">')
+    text = text.replace("\x1b[31m",'<span style="color:red;">')
     text = text.replace("\x1b[32m",'<span style="color:green;">')
     text = text.replace("\x1b[33m",'<span style="color:DarkGoldenRod;">')
     text = text.replace("\x1b[34m",'<span style="color:blue;">')

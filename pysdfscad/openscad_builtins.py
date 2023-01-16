@@ -119,7 +119,7 @@ def blend(context,ratio=0.5):
 
 def module_shell(context,thickness=10):
     def inner(children=lambda:()):
-        children = list(module_union()children())[0]
+        children = list(module_union()(children()))[0]
         return children.shell(thickness)
     return inner
 

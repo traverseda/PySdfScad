@@ -241,6 +241,8 @@ import os
 
 ui_dir=Path(__file__).parent
 
+log_format='<level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>'
+
 class MainUi(QMainWindow):
     def __init__(self):
         super().__init__() # Call the inherited classes __init__ method
@@ -254,7 +256,7 @@ class MainUi(QMainWindow):
         self.preview3d.setCameraPosition(distance=40)
 
         self.logger=QTextEditLogger(self.sideSplitter)
-        self._logger_handle_id=logger.add(self.logger, colorize=True)
+        self._logger_handle_id=logger.add(self.logger, colorize=True,format=log_format)
 
         self.editor=EditorAll()
         self.editor.setText(EXAMPLE_TEXT)
@@ -375,6 +377,8 @@ class MainUi(QMainWindow):
 
     def render(self):
         self.logger._text=[]
+        logger.warning(f"Early \x1b[31malpha!\x1b[0m Really!")
+        logger.warning(f'Save your files \x1b[31mregularly\x1b[0m')
         logger.info(f"Started new render with file {self.openscadFile.file}")
         thread = Thread(target=self._render)
         thread.start()
