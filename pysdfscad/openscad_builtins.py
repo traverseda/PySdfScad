@@ -5,14 +5,15 @@ from loguru import logger
 import itertools
 import lark
 import math
-
+from sympy import S,N
+import numpy as np
 
 def module_echo(*args,**kwargs):
     def inner(children=lambda:()):
-        out = [str(i) for i in args]
+        out = [repr(i) for i in args]
         for k,v in kwargs.items():
             k=k.removeprefix("var_")
-            out.append(k+"="+str(v))
+            out.append(k+"="+repr(v))
         logger.opt(depth=1).info("ECHO: "+", ".join(out))
         return
         yield
@@ -25,6 +26,42 @@ def function_version():
 var_undef = None
 var_true = True
 var_false = False
+
+class Range:
+    """Generator that works like an openscad range
+    """
+    def __init__(self,start,stop,step):
+        self.start=float(start)
+        self.stop=float(stop)
+        self.step=float(step)
+        
+    def __iter__(self):
+        count = 0
+        while True:
+            temp = float(self.start + self.count * self.step)
+            if self.step > 0 and temp >= self.stop:
+                break
+            elif self.step < 0 and temp <= self.stop:
+                break
+            yield temp
+            count += 1
+
+    def __repr__(self):
+        return f"[{self.start}:{self.step}:{self.stop}]"
+
+def scad_range(start,stop,step):
+    return Range(start,stop,step)
+
+
+#def function_S(i):
+#    """Convert the given string into a symbolic representation.
+#    """
+#    return S(i)
+
+#def function_N(i):
+#    """Convert a sympy object into a float
+#    """
+#    return N(i)
 
 def module_sphere(var_r):
     def inner(children=lambda:()):
@@ -80,9 +117,11 @@ def blend(context,ratio=0.5):
     child2 = reduce(sdf.union,children[1:])
     return child1.blend(child2,k=ratio)
 
-def shell(context,thickness=10):
-    children = union(context)
-    return children.shell(thickness)
+def module_shell(context,thickness=10):
+    def inner(children=lambda:()):
+        children = list(module_union()children())[0]
+        return children.shell(thickness)
+    return inner
 
 def twist(context,degrees):
     #Has some significant weirdness that seems to be related to translation.

@@ -25,18 +25,6 @@ files = [
 ]
 
 [[package]]
-name = "astpretty"
-version = "3.0.0"
-description = "Pretty print the output of python stdlib `ast.parse`."
-category = "dev"
-optional = false
-python-versions = ">=3.8"
-files = [
-    {file = "astpretty-3.0.0-py2.py3-none-any.whl", hash = "sha256:15bfd47593667169485a1fa7938b8de9445b11057d6f2b6e214b2f70667f94b6"},
-    {file = "astpretty-3.0.0.tar.gz", hash = "sha256:b08c95f32e5994454ea99882ff3c4a0afc8254c38998a0ed4b479dba448dc581"},
-]
-
-[[package]]
 name = "attrs"
 version = "22.2.0"
 description = "Classes Without Boilerplate"
@@ -697,15 +685,20 @@ rich = "*"
 all = ["h5py", "netCDF4"]
 
 [[package]]
-name = "meta"
-version = "1.0.2"
-description = "Byte-code and ast programming tools"
-category = "dev"
+name = "mpmath"
+version = "1.2.1"
+description = "Python library for arbitrary-precision floating-point arithmetic"
+category = "main"
 optional = false
 python-versions = "*"
 files = [
-    {file = "meta-1.0.2.tar.gz", hash = "sha256:35bbd24f212c09e04836ef4cac3e3a0e16e24e89e5452c6072a517bf674b0676"},
+    {file = "mpmath-1.2.1-py3-none-any.whl", hash = "sha256:604bc21bd22d2322a177c73bdb573994ef76e62edd595d17e00aff24b0667e5c"},
+    {file = "mpmath-1.2.1.tar.gz", hash = "sha256:79ffb45cf9f4b101a807595bcb3e72e0396202e0b1d25d689134b48c4216a81a"},
 ]
+
+[package.extras]
+develop = ["codecov", "pycodestyle", "pytest (>=4.6)", "pytest-cov", "wheel"]
+tests = ["pytest (>=4.6)"]
 
 [[package]]
 name = "mypy-extensions"
@@ -1370,6 +1363,21 @@ files = [
 ]
 
 [[package]]
+name = "sympy"
+version = "1.11.1"
+description = "Computer algebra system (CAS) in Python"
+category = "main"
+optional = false
+python-versions = ">=3.8"
+files = [
+    {file = "sympy-1.11.1-py3-none-any.whl", hash = "sha256:938f984ee2b1e8eae8a07b884c8b7a1146010040fccddc6539c54f401c8f6fcf"},
+    {file = "sympy-1.11.1.tar.gz", hash = "sha256:e32380dce63cb7c0108ed525570092fd45168bdae2faa17e528221ef72e88658"},
+]
+
+[package.dependencies]
+mpmath = ">=0.19"
+
+[[package]]
 name = "tifffile"
 version = "2022.10.10"
 description = "Read and write TIFF files"
@@ -1473,4 +1481,4 @@ qtgui = ["pyqt5", "qscintilla", "pyqtgraph", "pyopengl"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "2b76ec5cc70feb0dd47f26d42d4f37e0c21ccaa9fdaecaa5a144f78180d45472"
+content-hash = "3bb864a012dba7ae05b7bcd141951ea9a0dfa48c3eccb6d024f359df2ed6cc72"

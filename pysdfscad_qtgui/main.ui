@@ -53,11 +53,17 @@
     <property name="title">
      <string>&amp;File</string>
     </property>
+    <widget class="QMenu" name="menuExamples">
+     <property name="title">
+      <string>Examples</string>
+     </property>
+    </widget>
+    <addaction name="action_New"/>
     <addaction name="actionOpen"/>
     <addaction name="actionSave"/>
     <addaction name="actionSave_As"/>
     <addaction name="actionExport_Mesh"/>
-    <addaction name="actionExamples"/>
+    <addaction name="menuExamples"/>
     <addaction name="actionExit"/>
    </widget>
    <widget class="QMenu" name="menu_Design">
@@ -90,11 +96,6 @@
     <string>&amp;Export Mesh</string>
    </property>
   </action>
-  <action name="actionExamples">
-   <property name="text">
-    <string>Examples</string>
-   </property>
-  </action>
   <action name="actionExit">
    <property name="text">
     <string>E&amp;xit</string>
@@ -106,6 +107,16 @@
    </property>
    <property name="shortcut">
     <string>F5</string>
+   </property>
+  </action>
+  <action name="action">
+   <property name="text">
+    <string>foo</string>
+   </property>
+  </action>
+  <action name="action_New">
+   <property name="text">
+    <string>&amp;New</string>
    </property>
   </action>
  </widget>

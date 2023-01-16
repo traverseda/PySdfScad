@@ -261,6 +261,8 @@ class MainUi(QMainWindow):
 
         self.tabWidget.addTab(self.editor,"Source")
 
+        self._exampleMenu(self.findChild(QMenu,"menuExamples"))
+
         self.astPreview=QsciScintilla()
         self.astPreview.setIndentationGuides(True)
         self.astPreview.setIndentationsUseTabs(False)
@@ -283,13 +285,13 @@ class MainUi(QMainWindow):
 
     def _connectActions(self):
         # Connect File actions
-#        self.newAction.triggered.connect(self.newFile)
-#        self.openAction.triggered.connect(self.openFile)
-#        self.saveAction.triggered.connect(self.saveFile)
-#        self.saveAsAction.triggered.connect(self.saveFileAs)
-#        self.exitAction.triggered.connect(self.close)
+        self.action_New.triggered.connect(self.newFile)
+        self.actionOpen.triggered.connect(self.openFile)
+        self.actionSave.triggered.connect(self.saveFile)
+        self.actionSave_As.triggered.connect(self.saveFileAs)
+        self.actionExit.triggered.connect(self.close)
         self.actionRender.triggered.connect(self.render)
-#        self.exportMeshAction.triggered.connect(self.exportMesh)
+        self.actionExport_Mesh.triggered.connect(self.exportMesh)
         # Connect Edit actions
 #        self.copyAction.triggered.connect(self.copyContent)
 #        self.pasteAction.triggered.connect(self.pasteContent)
@@ -298,14 +300,28 @@ class MainUi(QMainWindow):
 #        self.helpContentAction.triggered.connect(self.helpContent)
 #        self.aboutAction.triggered.connect(self.about)
 
+    def newFile(self):
+        self.openscadFile.file=OpenscadFile()
+        self.openscadFile.reload()
+
+    def saveFileAs(self):
+        dlg = QFileDialog()
+        dlg.setFileMode(QFileDialog.AnyFile)
+        if dlg.exec_():
+            filename = dlg.selectedFiles()[0]
+            self.openscadFile.file=Path(filename)
+            self.saveFile()
+        self.setWindowTitle(f"{self.openscadFile.file} - pySdfScad")
+
 
     @logger.catch
     def _render(self):
         self.openscadFile.text=self.editor.text()
-        self.result = self.openscadFile.run()[0]
-        if not self.result:
-            interpreter.logger.info("No top level geometry to render")
+        result = list(self.openscadFile.run())
+        if not result:
+            logger.info("No top level geometry to render")
         else:
+            self.result=result[0]
             import numpy as np
             with redirect_stdout(LoggerWriter(logger.opt(depth=1).info)):
                 points = self.result.generate()
@@ -326,79 +342,6 @@ class MainUi(QMainWindow):
             g.setSpacing(10, 10)
             self.preview3d.addItem(g)
             self.preview3d.addItem(mesh)
-
-
-    def render(self):
-        self.logger._text=[]
-        logger.info(f"Started new render with file {self.openscadFile.file}")
-        thread = Thread(target=self._render)
-        thread.start()
-        self.astPreview.setText(self.openscadFile.as_ast())
-        self.pythonPreview.setText(self.openscadFile.as_python())
-
-    def closeEvent(self, event):
-        logger.remove(self._logger_handle_id)
-        settings = QSettings()
-        settings.setValue('geometry',self.saveGeometry())
-        settings.setValue('windowState',self.saveState())
-        super().closeEvent(event)
-
-    def readSettings(self):
-        settings = QSettings()
-        try:
-            self.restoreGeometry(settings.value("geometry"))
-            self.restoreState(settings.value("windowState"))
-        except:
-            logger.warning("Couldn't restore window state from settings")
-
-class Window(QMainWindow):
-    """Main Window."""
-    def __init__(self, parent=None):
-        """Initializer."""
-        super().__init__(parent)
-        self.settings = QSettings('pySdfScad', 'pySdfScad')
-        self.resize(self.settings.value("size", QSize(800, 600)))
-        self.move(self.settings.value("pos", QPoint(50, 50)))
-
-        self.logger=QTextEditLogger(QtWidgets.QTextEdit())
-        logger.add(self.logger, colorize=True)
-        #for color in ("red","green","cyan","blue","black","magenta","white","yellow","underline","dim","normal","italic","strike",):
-        #    logger.info(f"<bold><{color}>{color}</{color}></bold>")
-
-        self.openscadFile=OpenscadFile()
-
-        self.result=None
-        self.mesh=None
-        self.example_actions=set()
-        self.setWindowTitle(f"{self.openscadFile.file} - pySdfScad")
-        self.editor = EditorAll()
-        self.editor.setText(EXAMPLE_TEXT)
-        self.preview=gl.GLViewWidget()
-        self.preview.setCameraPosition(distance=40)
-
-        self.console = self.logger.widget
-
-        self.sidebar=QSplitter()
-        self.sidebar.setOrientation(0)
-        self.sidebar.addWidget(self.preview)
-        self.sidebar.addWidget(self.console)
-
-        self.centralLayout=QSplitter()
-
-        self.centralLayout.addWidget(self.editor)
-        self.centralLayout.addWidget(self.sidebar)
-
-        self.setCentralWidget(self.centralLayout)
-        self._createActions()
-        self._createMenuBar()
-        self._connectActions()
-
-    def closeEvent(self, e):
-        # Write window size and position to config file
-        self.settings.setValue("size", self.size())
-        self.settings.setValue("pos", self.pos())
-
-        e.accept()
 
     def exportMesh(self):
         if not self.result:
@@ -423,46 +366,35 @@ class Window(QMainWindow):
             self.editor.setText(self.openscadFile.text)
         self.setWindowTitle(f"{self.openscadFile.file} - pySdfScad")
 
-    def newFile(self):
-        self.openscadFile.file=None
-        self.openscadFile.reload()
-
-    def saveFileAs(self):
-        dlg = QFileDialog()
-        dlg.setFileMode(QFileDialog.AnyFile)
-        if dlg.exec_():
-            filename = dlg.selectedFiles()[0]
-            self.openscadFile=Path(filename)
-            self.saveFile()
-        self.setWindowTitle(f"{self.file} - pySdfScad")
-
     def saveFile(self):
-        if not self.file:
+        if not self.openscadFile.file:
             self.saveFileAs()
         else:
             self.openscadFile.text=self.editor.text()
             self.openscadFile.save()
 
+    def render(self):
+        self.logger._text=[]
+        logger.info(f"Started new render with file {self.openscadFile.file}")
+        thread = Thread(target=self._render)
+        thread.start()
+        self.astPreview.setText(self.openscadFile.as_ast())
+        self.pythonPreview.setText(self.openscadFile.as_python())
 
+    def closeEvent(self, event):
+        logger.remove(self._logger_handle_id)
+        settings = QSettings()
+        settings.setValue('geometry',self.saveGeometry())
+        settings.setValue('windowState',self.saveState())
+        super().closeEvent(event)
 
-
-    def _createActions(self):
-        # Creating action using the first constructor
-        self.newAction = QAction(self)
-        self.newAction.setText("&New...")
-        # Creating actions using the second constructor
-        self.openAction = QAction("&Open...", self)
-        self.saveAction = QAction("&Save", self)
-        self.saveAsAction = QAction("&Save As...", self)
-        self.exportMeshAction = QAction("&Export Mesh...", self)
-        self.exitAction = QAction("&Exit", self)
-        self.copyAction = QAction("&Copy", self)
-        self.pasteAction = QAction("&Paste", self)
-        self.cutAction = QAction("C&ut", self)
-        self.helpContentAction = QAction("&Help Content", self)
-        self.aboutAction = QAction("&About", self)
-        
-        self.renderAction = QAction("&Render", self)
+    def readSettings(self):
+        settings = QSettings()
+        try:
+            self.restoreGeometry(settings.value("geometry"))
+            self.restoreState(settings.value("windowState"))
+        except:
+            logger.warning("Couldn't restore window state from settings")
 
     def _loadExample(self,file):
         self.editor.setText(file.read_text())
@@ -479,7 +411,7 @@ class Window(QMainWindow):
         nest = nested_dict()
 
         for a in (module_path/"examples").glob("**/*.scad"):
-            rel = a.relative_to(module_path)
+            rel = a.relative_to(module_path/"examples")
             nested=nest
             for b in rel.parent.parts:
                 nested=nested[b]
@@ -498,31 +430,7 @@ class Window(QMainWindow):
                     action.triggered.connect(lambda: self.editor.setText(text()))
 
         menu_items=list(recursive_menu(nest,parent))
-        return menu_items[0]
-
-    def _createMenuBar(self):
-        menuBar = self.menuBar()
-        self.setMenuBar(menuBar)
-
-        fileMenu = QMenu("&File", self)
-        menuBar.addMenu(fileMenu)
-        #fileMenu.addAction(self.newAction)
-        fileMenu.addAction(self.openAction)
-        fileMenu.addAction(self.saveAction)
-        fileMenu.addAction(self.saveAsAction)
-        fileMenu.addAction(self.exportMeshAction)
-        fileMenu.addMenu(self._exampleMenu(fileMenu))
-        fileMenu.addAction(self.exitAction)
-        # Design Menu
-        designMenu = menuBar.addMenu("&Design")
-        designMenu.addAction(self.renderAction)
-        #designMenu.addAction(QAction('Auto-render', designMenu, checkable=True))
-        # Edit menu
-        #editmenu = menubar.addmenu("&edit")
-        #editMenu.addAction(self.copyAction)
-        #editMenu.addAction(self.pasteAction)
-        #editMenu.addAction(self.cutAction)
-
+        parent.addMenu(menu_items[0])
 
 
 def main():

@@ -19,6 +19,7 @@ def caplog(_caplog):
 def eval_scad(data):
     interpreter = OpenscadFile()
     interpreter.text = data
+    print(data)
     print(colorize_ansi(interpreter.as_python()))
     out = interpreter.run()
     return out
@@ -28,12 +29,12 @@ def test_echo(caplog):
     echo("Hello World");
     """)
     print(*caplog.text)
-    assert 'ECHO: "Hello World"' in caplog.text
+    assert "ECHO: 'Hello World'" in caplog.text
 
 def test_basic_types(caplog):
     eval_scad("""
     echo(
-        vector=[1,2, 3],
+        vector=[1.0,2, 3.0],
         number=1,
         undef=undef,
         true=true,
@@ -42,12 +43,12 @@ def test_basic_types(caplog):
     );
     """)
     expected = 'ECHO: '\
-        'vector=[1.0, 2.0, 3.0], '\
-        'number=1.0, '\
+        'vector=[1.0, 2, 3.0], '\
+        'number=1, '\
         'undef=None, '\
         'true=True, '\
         'false=False, '\
-        'string="Hello"'\
+        "string='Hello'"\
         "\n"
 
     assert expected in caplog.text
@@ -64,12 +65,12 @@ def test_basic_math(caplog):
     );
     """)
     expected = 'ECHO: '\
-        'add=2.0, '\
-        'sub=-1.0, '\
-        'mod=1.0, '\
-        'exp=100.0, '\
+        'add=2, '\
+        'sub=-1, '\
+        'mod=1, '\
+        'exp=100, '\
         'div=5.0, '\
-        'mul=4.0'\
+        'mul=4'\
         "\n"
     assert expected in caplog.text
 
@@ -92,20 +93,20 @@ def test_vector_index(caplog):
     foo=[0,1,2][0];
     echo(foo);
     """)
-    assert 'ECHO: 0.0\n' in caplog.text
+    assert 'ECHO: 0\n' in caplog.text
 
 
 def test_range(caplog):
     eval_scad("""
     echo([0:2:20]);
     """)    
-    assert 'ECHO: range(0, 20, 2)\n' in caplog.text
+    assert 'ECHO: [0.0:2.0:20.0]\n' in caplog.text
 
 def test_conditional_op(caplog):
     eval_scad("""
     echo(false ? 0 : 1);
     """)
-    assert 'ECHO: 1.0\n' in caplog.text
+    assert 'ECHO: 1\n' in caplog.text
 
 def test_if_op(caplog):
     eval_scad("""
@@ -117,7 +118,7 @@ def test_if_op(caplog):
     assert 'ECHO: False' in lines[1]
 
 def test_for(caplog):
-    out = eval_scad("for (x=[1,2,3],y=[1,2,3])echo(x,y);")
+    out = eval_scad("for (x=[1.0,2.0,3.0],y=[1.0,2.0,3.0])echo(x,y);")
     expected=["ECHO: 1.0, 1.0",
               "ECHO: 1.0, 2.0",
               "ECHO: 1.0, 3.0",
