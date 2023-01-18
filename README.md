@@ -42,13 +42,6 @@ is a large flat plain or a complicated curve.
 This is something that can be improved upon in the future (look into collinear mesh simplification), 
 but it's likely PySdfScad meshes will always be a bit "messier".
 
- * You can assign geometry objects to variables, and write functions that modify geometry.
-
-For example constructs like  `"foo=sphere(r=2);` will work. This is because signed distance function
-based geometry is... based on functions. This is a somewhat advanced feature that you
-probably don't need to worry about, but if you ever wished you could store an object in an array, well
-now you can.
-
  * There are a lot more options for modifying a mesh
 
 This is really the reason this project exists, our [underlying library](https://github.com/fogleman/sdf#miscellaneous)
@@ -73,7 +66,9 @@ language).
 
 More complicated than it probably needed to be, but I'm hopeful I can do some cool
 stuff with it in the future. The original (unfinished) interpreter code was also a handful,
-and I don't think this is all that much more unreadable.
+and I don't think this is all that much more unreadable. The output is generally more easily
+debugged, as we have a nicer intermediate state (python code) than we did when using an
+interpreter.
 
 
 ## It's still alpha software
