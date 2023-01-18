@@ -27,9 +27,27 @@ def module_echo(*args,**kwargs):
         yield
     return inner
 
+def div(left,right):
+    """Openscad compatible division, returns inf
+    on division by zero.
+    """
+    if right == 0: return float("inf")
+    return left/right
+
 def function_version():
     from importlib.metadata import version
     return version('pysdfscad')
+
+def function_str(*args):
+    args = (str(i) for i in args)
+    return "".join(args)
+
+def function_cos(a):
+    logger.debug(a)
+    return math.cos(a)
+
+def function_min(*a):
+    return min(*a)
 
 var_undef = None
 var_true = True
@@ -157,7 +175,11 @@ def module_extrude(height):
     return inner
 
 
-def module_text(var_text,var_size=10,var_font="Arimo"):
+def module_text(var_text,var_size=10,var_font="Arimo",var_width=None,var_height=None):
+    #ToDo: https://stackoverflow.com/questions/43060479/how-to-get-the-font-pixel-height-using-pils-imagefont-class
+    #Set up halign and valign
+    if not var_height: var_height=var_size
+
     fontparts = var_font.split("-")
     if len(fontparts)==2:
         family, varient = fontparts
@@ -188,7 +210,8 @@ def module_text(var_text,var_size=10,var_font="Arimo"):
         logger.opt(depth=1).debug(f"Found {name_stripped}-{varient}.ttf in font cache")
 
     def text_inner(children=lambda:()):
-        yield sdf.text(str(font_file), var_text,)
+        w, h = sdf.measure_text(str(font_file), var_text,height=var_size,width=var_width)
+        yield sdf.text(str(font_file), var_text, height=var_height,width=var_width,).translate((w/2,h/2))
 
     return text_inner
 

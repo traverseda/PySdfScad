@@ -13,6 +13,7 @@ start: value*
     | sum "-" product   -> sub
 
 ?product: atom
+    | sum "?" sum ":" sum  -> conditional_op
     | product "*" atom  -> mul
     | product "/" atom  -> div
     | product "%" atom  -> mod
@@ -23,7 +24,6 @@ start: value*
     | product "==" atom  -> equality
     | product "<" atom  -> lt_op
     | product ">" atom  -> gt_op
-    | sum "?" sum ":" sum  -> conditional_op
 
 ?atom: NUMBER           -> number
      | "-" atom         -> neg

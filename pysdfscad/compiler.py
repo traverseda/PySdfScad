@@ -412,10 +412,15 @@ class OpenscadToPy(Transformer):
         )
 
     def div(self, meta, left, right):
-        return ast.BinOp(
-            left=left,
-            right=right,
-            op=ast.Div(),
+        return ast.Call(
+            ast.Name(
+                id="div",
+                ctx=ast.Load(),
+                lineno=meta.line,
+                col_offset=meta.column,
+            ),
+            args=[left,right],
+            keywords=[],
             lineno=meta.line,
             col_offset=meta.column,
         )
@@ -524,7 +529,6 @@ class OpenscadToPy(Transformer):
         )
 
     def conditional_op(self, meta, test, body, orelse):
-        # logger.info(args)
         return ast.IfExp(
             test=test,
             body=body,
@@ -551,8 +555,18 @@ class OpenscadToPy(Transformer):
                 ast.arg(kwarg.arg, lineno=kwarg.lineno, col_offset=kwarg.col_offset)
             )
 
+        
+
         defaults = [i.value for i in kwargs]
         inner_body = list(self._normalize_block(body))
+        inner_defaults =[]
+        for arg in args:
+            inner_defaults.append(ast.Name(id=arg.arg,
+                                           ctx=ast.Load(),
+                lineno=meta.line,
+                col_offset=meta.column,
+
+                ))
 
         body = [
             ast.FunctionDef(
@@ -564,7 +578,7 @@ class OpenscadToPy(Transformer):
                     posonlyargs=[],
                     kwonlyargs=[],
                     kw_defaults=[],
-                    defaults=defaults,
+                    defaults=inner_defaults,
                 ),
                 lineno=meta.line,
                 col_offset=meta.column,
@@ -650,7 +664,7 @@ def main():
     import astor  # type: ignore
 
     example_py = """
-True and False
+foo = (1+1)/2
 """
     if example_py:
         print("====Python AST=====")

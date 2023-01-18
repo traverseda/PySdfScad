@@ -337,8 +337,9 @@ class MainUi(QMainWindow):
             meshdata = gl.MeshData(vertexes=points, faces=cells)
             mesh = gl.GLMeshItem(meshdata=meshdata,
                                  smooth=False, drawFaces=True,
-                                 shader='normalColor',
-                                 drawEdges=False, color = (0.2,0.8,0.2,1), edgeColor=(0.2, 0.5, 0.2, 1)
+                                 drawEdges=False,
+                                 shader="normalColor",
+                                 color = (1,1,1,1), edgeColor=(0.2, 0.5, 0.2, 1)
                                  )
             self.preview3d.clear()
             g = gl.GLGridItem()
@@ -383,6 +384,7 @@ class MainUi(QMainWindow):
         logger.warning(f"Early \x1b[31malpha!\x1b[0m Really!")
         logger.warning(f'Save your files \x1b[31mregularly\x1b[0m')
         logger.info(f"Started new render with file {self.openscadFile.file}")
+        self.preview3d.clear()
         thread = Thread(target=self._render)
         thread.start()
         self.astPreview.setText(self.openscadFile.as_ast())
