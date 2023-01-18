@@ -23,6 +23,7 @@ pyqtconsole = {version = "^1.2.2", optional = true}
 pyqtgraph = {version = "^0.13.1", optional = true}
 pyopengl = {version = "^3.1.6", optional=true}
 sympy = "^1.11.1"
+appdirs = "^1.4.4"
 
 [tool.poetry.extras]
 qtgui = ["PyQt5","qscintilla","pysdfscad_qtgui","pyqtgraph","pyopengl"]

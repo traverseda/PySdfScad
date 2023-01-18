@@ -2,6 +2,7 @@ import sys, os
 import textwrap
 import pkgutil
 import pysdfscad
+import sdf
 #from pysdfscad.main import EvalOpenscad, openscad_parser
 from pysdfscad.main import OpenscadFile, colorize_html
 from loguru import logger
@@ -324,6 +325,8 @@ class MainUi(QMainWindow):
             logger.info("No top level geometry to render")
         else:
             self.result=result[0]
+            if isinstance(self.result,sdf.SDF2):
+                self.result=self.result.extrude(0.1)
             import numpy as np
             with redirect_stdout(LoggerWriter(logger.opt(depth=1).info)):
                 points = self.result.generate()

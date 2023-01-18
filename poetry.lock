@@ -13,10 +13,22 @@ files = [
 ]
 
 [[package]]
+name = "appdirs"
+version = "1.4.4"
+description = "A small Python module for determining appropriate platform-specific dirs, e.g. a \"user data dir\"."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "appdirs-1.4.4-py2.py3-none-any.whl", hash = "sha256:a841dacd6b99318a741b166adb07e19ee71a274450e68237b4650ca1055ab128"},
+    {file = "appdirs-1.4.4.tar.gz", hash = "sha256:7d5d0167b2b1ba821647616af46a749d1c653740dd0d2415100fe26e27afdf41"},
+]
+
+[[package]]
 name = "astor"
 version = "0.8.1"
 description = "Read/rewrite/write Python ASTs"
-category = "dev"
+category = "main"
 optional = false
 python-versions = "!=3.0.*,!=3.1.*,!=3.2.*,!=3.3.*,>=2.7"
 files = [
@@ -1481,4 +1493,4 @@ qtgui = ["pyqt5", "qscintilla", "pyqtgraph", "pyopengl"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "3bb864a012dba7ae05b7bcd141951ea9a0dfa48c3eccb6d024f359df2ed6cc72"
+content-hash = "ae74b454ffcc47166f5a73999664a2ee58233d890dc3a4c3450c4f0330f408d3"

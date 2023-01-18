@@ -7,6 +7,14 @@ import lark
 import math
 from sympy import S,N
 import numpy as np
+from appdirs import AppDirs
+from pathlib import Path
+from urllib.request import urlopen
+import urllib.parse
+from zipfile import ZipFile
+from io import BytesIO
+
+dirs = AppDirs("pySdfScad", "pySdfScad")
 
 def module_echo(*args,**kwargs):
     def inner(children=lambda:()):
@@ -141,5 +149,45 @@ def module_translate(vector):
         yield children.translate((x,y,z))
     return inner
 
+def module_extrude(height):
+    def inner(children=lambda:()):
+        children = list(module_union()(children))[0]
+        if not children: return
+        yield children.extrude((height))
+    return inner
 
+
+def module_text(var_text,var_size=10,var_font="Arimo"):
+    """Generates text, uses google fonts so that everyone has
+    the same fonts.
+    """
+
+    #ToDo: add supports for local fonts by specifying the full path.
+    fontparts = var_font.split("-")
+    if len(fontparts)==2:
+        family, varient = fontparts
+    elif len(fontparts)==1:
+        family=fontparts[0]
+        varient="Regular"
+    else:
+        raise Exception(f"Can't handle font {var_font}, too many hyphens in name")
+
+
+    fontpath = Path(dirs.user_cache_dir)/"fonts"
+    fontpath.mkdir(parents=True, exist_ok=True)
+
+    font_file = fontpath/f"{family}-{varient}.ttf"
+    if not font_file.exists():
+        fonturl = f"https://github.com/google/fonts/raw/main/ofl/{family.lower()}/{family}-{varient}.ttf"
+        logger.opt(depth=1).debug(f"Downloading font family from {fonturl}")
+        with urlopen(fonturl) as response:
+            font_file.write_bytes(response.read())
+
+    else:
+        logger.opt(depth=1).debug(f"Found {family}-{varient}.ttf in font cache")
+
+    def text_inner(children=lambda:()):
+        yield sdf.text(str(font_file), var_text,)
+
+    return text_inner
 
