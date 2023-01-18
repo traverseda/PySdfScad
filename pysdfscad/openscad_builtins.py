@@ -158,11 +158,6 @@ def module_extrude(height):
 
 
 def module_text(var_text,var_size=10,var_font="Arimo"):
-    """Generates text, uses google fonts so that everyone has
-    the same fonts.
-    """
-
-    #ToDo: add supports for local fonts by specifying the full path.
     fontparts = var_font.split("-")
     if len(fontparts)==2:
         family, varient = fontparts
@@ -176,15 +171,21 @@ def module_text(var_text,var_size=10,var_font="Arimo"):
     fontpath = Path(dirs.user_cache_dir)/"fonts"
     fontpath.mkdir(parents=True, exist_ok=True)
 
-    font_file = fontpath/f"{family}-{varient}.ttf"
+    name_stripped=family.replace(" ","")
+    font_file = fontpath/f"{name_stripped}-{varient}.ttf"
+    print(font_file)
     if not font_file.exists():
-        fonturl = f"https://github.com/google/fonts/raw/main/ofl/{family.lower()}/{family}-{varient}.ttf"
+        fonturl = "https://fonts.google.com/download?family="+urllib.parse.quote(family)
         logger.opt(depth=1).debug(f"Downloading font family from {fonturl}")
-        with urlopen(fonturl) as response:
-            font_file.write_bytes(response.read())
-
+        with urlopen(fonturl) as zipresp:
+            with ZipFile(BytesIO(zipresp.read())) as theZip:
+                fileNames = theZip.namelist()
+                for fileName in fileNames:
+                    if fileName.endswith('ttf'):
+                        content = theZip.open(fileName).read()
+                        (fontpath/Path(fileName).name).write_bytes(content)
     else:
-        logger.opt(depth=1).debug(f"Found {family}-{varient}.ttf in font cache")
+        logger.opt(depth=1).debug(f"Found {name_stripped}-{varient}.ttf in font cache")
 
     def text_inner(children=lambda:()):
         yield sdf.text(str(font_file), var_text,)
