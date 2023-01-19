@@ -94,6 +94,12 @@ def module_sphere(var_r):
         yield sdf.sphere(var_r)
     return inner
 
+def module_children():
+    def _inner(children=lambda:()):
+        logger.debug("No children, so returning default")
+        yield from children
+    return _inner
+
 def module_cylinder(var_r=0, var_r1=None, var_r2=None, var_h=None, var_center=False):
 
     if var_r1 == None : var_r1=var_r
@@ -106,6 +112,11 @@ def module_cylinder(var_r=0, var_r1=None, var_r2=None, var_h=None, var_center=Fa
             yield sdf.capped_cone([0,0,0], sdf.Z*var_h, var_r1, var_r2).translate(-sdf.Z*var_h/2)
     return inner
 
+def module_linear_extrude(height=1,center=True):
+    def inner(children=lambda:()):
+        children = list(module_union()(children))[0]
+        yield children.extrude(height)
+    return inner
 
 def module_cube(var_size, var_center=False):
     def inner(children=lambda:()):

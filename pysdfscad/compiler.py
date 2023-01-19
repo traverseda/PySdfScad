@@ -38,6 +38,7 @@ looks good or is idiomatic.
 """
 
 from lark import Lark, Transformer, v_args, Tree, Token, Discard
+import lark
 import types
 import ast
 import itertools
@@ -45,6 +46,18 @@ from pathlib import Path
 import functools
 import astor
 
+def lines(arg):
+    """Convert various lark primitives into python AST compatible line/column metadata.
+    """
+    if isinstance(arg,lark.tree.Meta):
+        return {"lineno":arg.line,"col_offset":arg.column,"end_lineno":arg.end_line,"end_col_offset":arg.end_column}
+    if isinstance(arg,lark.lexer.Token):
+        return {"lineno":arg.line,"col_offset":arg.column,"end_lineno":arg.end_line,"end_col_offset":arg.end_column}
+    elif isinstance(arg, ast.AST):
+        return {"lineno":arg.lineno,"col_offset":arg.col_offset,"end_lineno":arg.end_lineno,"end_col_offset":arg.end_col_offset}
+
+    argtype=type(arg)
+    raise TypeError(f"Unknown type {argtype} for {arg}")
 
 @v_args(meta=True, inline=True)
 class OpenscadToPy(Transformer):
@@ -103,10 +116,9 @@ class OpenscadToPy(Transformer):
                     new_expression.append(
                         ast.Expr(
                             ast.YieldFrom(
-                                arg, lineno=arg.lineno, col_offset=arg.col_offset
+                                arg, **lines(arg),
                             ),
-                            lineno=arg.lineno,
-                            col_offset=arg.col_offset,
+                            **lines(arg),
                         )
                     )
                 # "When an expression, such as a function call, appears as a statement by itself (an expression statement), with its return value not used or stored, it is wrapped in this container."
@@ -114,7 +126,7 @@ class OpenscadToPy(Transformer):
                 else:
                     new_expression.append(
                         ast.Expr(
-                            value=arg, lineno=arg.lineno, col_offset=arg.col_offset
+                            value=arg, **lines(arg),
                         )
                     )
             elif isinstance(arg, ast.FunctionDef):
@@ -149,15 +161,13 @@ class OpenscadToPy(Transformer):
                     kw_defaults=[],
                     defaults=[],
                 ),
-                lineno=meta.line,
-                col_offset=meta.column,
+                **lines(meta)
             )
             call_child = [
                 ast.Name(
                     id="children_"+f_name.value,
                     ctx=ast.Load(),
-                    lineno=f_name.line,
-                    col_offset=f_name.column,
+                    **lines(f_name),
                 ),
             ]
 
@@ -167,18 +177,15 @@ class OpenscadToPy(Transformer):
                     ast.Name(
                         id="module_" + f_name.value,
                         ctx=ast.Load(),
-                        lineno=f_name.line,
-                        col_offset=f_name.column,
+                        **lines(f_name),
                     ),
                     args=[*args],
                     keywords=list(kwargs),
-                    lineno=meta.line,
-                    col_offset=meta.column,
+                    **lines(meta)
                 ),
                 args=call_child,
                 keywords=[],
-                lineno=meta.line,
-                col_offset=meta.column,
+                **lines(meta)
             )
         ]
         body = list(
@@ -190,9 +197,9 @@ class OpenscadToPy(Transformer):
 
     def COMMENT(self, token):
         return ast.Expr(
-            ast.Constant(token.value, lineno=token.line, col_offset=token.column),
-            lineno=token.line,
-            col_offset=token.column,
+            ast.Constant(token.value, **lines(token)),
+
+            **lines(token),
         )
 
     def function_call(self, meta, f_name: Token, args):
@@ -201,13 +208,11 @@ class OpenscadToPy(Transformer):
             ast.Name(
                 id="function_" + f_name.value,
                 ctx=ast.Load(),
-                lineno=f_name.line,
-                col_offset=f_name.column,
+                **lines(f_name),
             ),
             args=list(args),
             keywords=list(kwargs),
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta),
         )
 
     def combined_args(self, meta, *args_orig):
@@ -240,14 +245,13 @@ class OpenscadToPy(Transformer):
                 ast.Name(
                     id=keyword.arg,
                     ctx=ast.Store(),
-                    lineno=meta.line,
-                    col_offset=meta.column,
+                    **lines(meta)
                 )
             )
             values.append(keyword.value)
         if len(target) > 1:
             target = ast.Tuple(
-                target, ast.Store(), lineno=meta.line, col_offset=meta.column
+                target, ast.Store(), **lines(meta),
             )
         else:
             target = target[0]
@@ -257,18 +261,15 @@ class OpenscadToPy(Transformer):
                     value=ast.Name(
                         id="itertools",
                         ctx=ast.Load(),
-                        lineno=meta.line,
-                        col_offset=meta.column,
+                        **lines(meta)
                     ),
                     attr="product",
                     ctx=ast.Load(),
-                    lineno=meta.line,
-                    col_offset=meta.column,
+                    **lines(meta)
                 ),
                 args=values,
                 keywords=[],
-                lineno=meta.line,
-                col_offset=meta.column,
+                **lines(meta),
                 body=block,
             )
         else:
@@ -278,8 +279,7 @@ class OpenscadToPy(Transformer):
             iter=values,
             body=block,
             orelse=[],
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
         yield result
         print("=======for_ast========")
@@ -295,29 +295,27 @@ class OpenscadToPy(Transformer):
 
         out = ast.literal_eval(token.value)
         assert type(out) == str
-        return ast.Constant(out, None, lineno=token.line, col_offset=token.column)
+        return ast.Constant(out, None, **lines(token),)
 
     def number(self, meta, token):
         #Convert to int or float depending...
         out = ast.literal_eval(token.value)
         return ast.Constant(
-            out, None, lineno=meta.line, col_offset=meta.column
+            out, None, **lines(meta)
         )
 
     def var(self, meta, token):
         return ast.Name(
             id="var_" + token.value,
             ctx=ast.Load(),
-            lineno=token.line,
-            col_offset=token.column,
+            **lines(token)
         )
 
     def kwargvalue(self, meta, token, value):
         return ast.keyword(
             arg="var_" + token.value,
             value=value,
-            lineno=token.line,
-            col_offset=token.column,
+            **lines(token),
         )
 
     def assign_var(self, meta, name, value):
@@ -326,13 +324,11 @@ class OpenscadToPy(Transformer):
                 ast.Name(
                     id="var_" + name.value,
                     ctx=ast.Store(),
-                    lineno=name.line,
-                    col_offset=name.column,
+                    **lines(name)
                 ),
             ],
             value=value,
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def args_definition(self, meta, *args_orig):
@@ -356,7 +352,7 @@ class OpenscadToPy(Transformer):
         newargs = []
         for arg in args:
             newargs.append(
-                ast.arg(arg="var_" + arg.value, lineno=arg.line, col_offset=arg.column)
+                ast.arg(arg="var_" + arg.value, **lines(arg))
             )
         return newargs, kwargs
 
@@ -371,8 +367,7 @@ class OpenscadToPy(Transformer):
             left=left,
             right=right,
             op=ast.Add(),
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def mul(self, meta, left, right):
@@ -380,8 +375,7 @@ class OpenscadToPy(Transformer):
             left=left,
             right=right,
             op=ast.Mult(),
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def sub(self, meta, left, right):
@@ -389,8 +383,7 @@ class OpenscadToPy(Transformer):
             left=left,
             right=right,
             op=ast.Sub(),
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def mod(self, meta, left, right):
@@ -398,8 +391,7 @@ class OpenscadToPy(Transformer):
             left=left,
             right=right,
             op=ast.Mod(),
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def exp(self, meta, left, right):
@@ -407,8 +399,7 @@ class OpenscadToPy(Transformer):
             left=left,
             right=right,
             op=ast.Pow(),
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def div(self, meta, left, right):
@@ -416,13 +407,11 @@ class OpenscadToPy(Transformer):
             ast.Name(
                 id="div",
                 ctx=ast.Load(),
-                lineno=meta.line,
-                col_offset=meta.column,
+                **lines(meta)
             ),
             args=[left,right],
             keywords=[],
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def ifelse(self, meta, test, body, orelse=None):
@@ -435,8 +424,7 @@ class OpenscadToPy(Transformer):
             test=test,
             body=body,
             orelse=orelse,
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def inequality(self, meta, left, right):
@@ -448,8 +436,7 @@ class OpenscadToPy(Transformer):
             comparators=[
                 right,
             ],
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def equality(self, meta, left, right):
@@ -461,15 +448,13 @@ class OpenscadToPy(Transformer):
             comparators=[
                 right,
             ],
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
     def and_op(self, meta, left, right):
         return ast.BoolOp(
                 values=[left,right,],
             op=ast.And(),
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def lt_op(self, meta, left, right):
@@ -481,8 +466,7 @@ class OpenscadToPy(Transformer):
             comparators=[
                 right,
             ],
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def gt_op(self, meta, left, right):
@@ -494,15 +478,13 @@ class OpenscadToPy(Transformer):
             comparators=[
                 right,
             ],
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def vector_index(self, meta, obj,idx):
         return ast.Subscript(obj,idx,
             ctx=ast.Load(),
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta)
         )
 
     def range(self, meta, start, stop, step=None):
@@ -512,20 +494,17 @@ class OpenscadToPy(Transformer):
             step = ast.Constant(
                 value=1,
                 kind=None,
-                lineno=meta.line,
-                col_offset=meta.column,
+                **lines(meta)
             )
         return ast.Call(
             func=ast.Name(
                 id="scad_range",
                 ctx=ast.Load(),
-                lineno=meta.line,
-                col_offset=meta.column,
+                **lines(meta)
             ),
             args=[start, stop, step],
             keywords=[],
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta),
         )
 
     def conditional_op(self, meta, test, body, orelse):
@@ -533,16 +512,14 @@ class OpenscadToPy(Transformer):
             test=test,
             body=body,
             orelse=orelse,
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta),
         )
 
     def neg(self, meta, token):
         return ast.UnaryOp(
             op=ast.USub(),
             operand=token,
-            lineno=token.lineno,
-            col_offset=token.col_offset,
+            **lines(token),
         )
 
     def block(self, meta, *children):
@@ -552,21 +529,26 @@ class OpenscadToPy(Transformer):
         args, kwargs = args
         for kwarg in kwargs:
             args.append(
-                ast.arg(kwarg.arg, lineno=kwarg.lineno, col_offset=kwarg.col_offset)
+                ast.arg(kwarg.arg, **lines(kwarg),)
             )
 
         
 
         defaults = [i.value for i in kwargs]
         inner_body = list(self._normalize_block(body))
-        inner_defaults =[]
+        inner_defaults =[
+                ]
         for arg in args:
             inner_defaults.append(ast.Name(id=arg.arg,
                                            ctx=ast.Load(),
-                lineno=meta.line,
-                col_offset=meta.column,
+                **lines(meta),
 
                 ))
+        inner_defaults.append(ast.Name(id="module_children",
+                                       ctx=ast.Load(),
+            **lines(meta),
+
+            ))
 
         body = [
             ast.FunctionDef(
@@ -574,24 +556,25 @@ class OpenscadToPy(Transformer):
                 decorator_list=[],
                 body=inner_body,
                 args=ast.arguments(
-                    args=args,
+                    args=[
+                        *args,
+                        ast.arg("module_children", **lines(meta)),
+                        ],
                     posonlyargs=[],
                     kwonlyargs=[],
                     kw_defaults=[],
                     defaults=inner_defaults,
                 ),
-                lineno=meta.line,
-                col_offset=meta.column,
+
+                **lines(meta),
             ),
             ast.Return(
                 value=ast.Name(
                     name.value + "_inner",
                     ctx=ast.Load(),
-                    lineno=meta.line,
-                    col_offset=meta.column,
+                    **lines(meta),
                 ),
-                lineno=meta.line,
-                col_offset=meta.column,
+                **lines(meta),
             ),
         ]
         yield ast.FunctionDef(
@@ -605,15 +588,14 @@ class OpenscadToPy(Transformer):
                 kw_defaults=[],
                 defaults=defaults,
             ),
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta),
         )
 
     def function_def(self, meta, name, args, body):
         args, kwargs = args
         for kwarg in kwargs:
             args.append(
-                ast.arg(kwarg.arg, lineno=kwarg.lineno, col_offset=kwarg.col_offset)
+                ast.arg(kwarg.arg, **lines(kwarg),)
             )
 
         defaults = [i.value for i in kwargs]
@@ -623,8 +605,7 @@ class OpenscadToPy(Transformer):
             body=[
                 ast.Return(
                     value=body,
-                    lineno=meta.line,
-                    col_offset=meta.column,
+                    **lines(meta),
                 )
             ],
             args=ast.arguments(
@@ -634,16 +615,14 @@ class OpenscadToPy(Transformer):
                 kw_defaults=[],
                 defaults=defaults,
             ),
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta),
         )
 
     def vector(self, meta, args):
         return ast.List(
             list(args),
             ctx=ast.Load(),
-            lineno=meta.line,
-            col_offset=meta.column,
+            **lines(meta),
         )
 
     @v_args(meta=False, inline=False)
