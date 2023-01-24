@@ -344,10 +344,14 @@ class MainUi(QMainWindow):
                                  )
             self.preview3d.clear()
             g = gl.GLGridItem()
-
             g.setSize(200, 200)
             g.setSpacing(10, 10)
+
+            a=gl.GLAxisItem()
+            a.setSize(10,10,10)
+
             self.preview3d.addItem(g)
+            self.preview3d.addItem(a)
             self.preview3d.addItem(mesh)
 
     def exportMesh(self):

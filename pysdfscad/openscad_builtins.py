@@ -65,16 +65,30 @@ def function_str(*args):
     return "".join(args)
 
 def function_cos(a):
-    logger.debug(a)
     return math.cos(a)
+
+def function_sin(a):
+    return math.sin(a)
+
+def function_atan2(left,right):
+    return math.atan2(left,right)
 
 def function_min(*a):
     return min(*a)
 
+def function_max(*a):
+    return max(*a)
+
+def function_sqrt(a):
+    return math.sqrt(a)
+
+def function_pow(left,right):
+    return math.pow(left,right)
+
 var_undef = None
 var_true = True
 var_false = False
-
+var_PI = math.pi
 
 class Range:
     """Generator that works like an openscad range
@@ -87,7 +101,7 @@ class Range:
     def __iter__(self):
         count = 0
         while True:
-            temp = float(self.start + self.count * self.step)
+            temp = float(self.start + count * self.step)
             if self.step > 0 and temp >= self.stop:
                 break
             elif self.step < 0 and temp <= self.stop:
@@ -100,7 +114,6 @@ class Range:
 
 def scad_range(start,stop,step):
     return Range(start,stop,step)
-
 
 #def function_S(i):
 #    """Convert the given string into a symbolic representation.
@@ -117,6 +130,20 @@ def module_sphere(var_r):
         yield sdf.sphere(var_r)
     return inner
 
+def module_circle(var_r,var_fn=None):
+    def inner(children):
+        yield sdf.circle(var_r)
+    return inner
+
+def module_square(var_size,var_center=False):
+    def inner(children=no_children):
+        x,y=var_size
+        offset=(0,0)
+        if not var_center:
+            offset=[x/2,y/2]
+        yield sdf.rectangle(var_size).translate(offset)
+    return inner
+
 def module_cylinder(var_r=0, var_r1=None, var_r2=None, var_h=None, var_center=False):
 
     if var_r1 == None : var_r1=var_r
@@ -129,11 +156,12 @@ def module_cylinder(var_r=0, var_r1=None, var_r2=None, var_h=None, var_center=Fa
             yield sdf.capped_cone([0,0,0], sdf.Z*var_h, var_r1, var_r2).translate(-sdf.Z*var_h/2)
     return inner
 
-def module_linear_extrude(height=1,center=True):
+def module_linear_extrude(var_height=1,var_center=True, var_convexity=None,var_twist=0):
     def inner(children=lambda:()):
         children = list(module_union()(children))[0]
-        yield children.extrude(height)
+        yield children.extrude(var_height)
     return inner
+
 
 def module_cube(var_size, var_center=False):
     def inner(children=lambda:()):
@@ -180,6 +208,37 @@ def module_shell(context,thickness=10):
 def twist(context,degrees):
     #Has some significant weirdness that seems to be related to translation.
     return union(context).twist(degrees)
+
+def module_rotate(vector):
+    def inner(children):
+        if isinstance(vector,(int,float)):
+            x=0
+            y=0
+            z=vector
+        elif len(vector)==1:
+            x=vector[0]
+            y=0
+            z=0
+        elif len(vector)==2:
+            x,y = vector
+            z=0
+        elif len(vector)==3:
+            x,y,z=vector
+        else:
+            raise TypeError(f"Unable to convert translate({vector}) parameter to a vec3 or vec2 of numbers")
+        children = list(module_union()(children))[0]
+        if not children: return
+
+        #Convert degrees to radians
+        x,y,z = (i*(math.pi/180) for i in (x,y,z))
+        #ToDo, these are not degrees
+        if isinstance(children,sdf.SDF3):
+            yield children.rotate(x,sdf.X).rotate(y,sdf.Y).rotate(z,sdf.Z)
+        elif isinstance(children,sdf.SDF2):
+            yield children.rotate(z)
+        else:
+            raise TypeError(f"{type(children)} not expected")
+    return inner
 
 def module_translate(vector):
     def inner(children):
