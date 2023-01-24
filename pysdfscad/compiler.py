@@ -25,7 +25,10 @@ I use as a reference for python's AST nodes.
 https://greentreesnakes.readthedocs.io/en/latest/
 
 Basically, work on the lark syntax first, keep track of what nodes
-are unhandled, and write a new method to handle that node.
+are unhandled, and write a new method to handle that node. The order
+of the lark syntax does matter, so if you're getting some weird order
+or operations issues than try changing the order terms are defined in the
+lark syntax.
 
 You probably don't need to work on this unless you're implemnting completly
 new syntax though.
@@ -35,6 +38,15 @@ python bytecode (more or less).
 We use a third-party module to turn that bytecode into
 python source code, but it really shouldn't matter if that representation
 looks good or is idiomatic.
+
+This code is hard to read, I'm not sure how to make it better or more readable.
+Part of the problem is that we need to do some very weird stuff to the python
+AST in order to make the openscad Scope work properly (which is why most everything
+is a decorator instead of just a regular function. There *might* be a better way to
+handle that by being more explicity about what scopre we're passing).
+
+Any ideas that make this more readable and debuggable would be veryy helpful,
+and hopefully python AST type hints will be more useful in the future.
 """
 
 from lark import Lark, Transformer, v_args, Tree, Token, Discard
@@ -538,6 +550,7 @@ class OpenscadToPy(Transformer):
                             "module_children",
                             **lines(meta),
                         ),
+                        *args,
                     ],
                     posonlyargs=[],
                     kwonlyargs=[],

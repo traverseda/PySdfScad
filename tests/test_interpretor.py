@@ -138,6 +138,13 @@ def test_def_function_nested(caplog):
     """)    
     assert 'ECHO: 2' in caplog.text
 
+def test_nested_child_modules(caplog):
+    eval_scad("""
+    module nested()children();
+    nested()nested()nested()echo("nested");
+    """)
+    assert "ECHO: 'nested'" in caplog.text
+
 def test_scope(caplog):
     """Test to make sure blocks are properly
     maintaining scope
