@@ -27,6 +27,7 @@ appdirs = "^1.4.4"
 
 [tool.poetry.extras]
 qtgui = ["PyQt5","qscintilla","pysdfscad_qtgui","pyqtgraph","pyopengl"]
+#docs = ["Sphinx", "sphinx-rtd-theme",]
 
 [tool.poetry.scripts]
 pysdfscad = "pysdfscad.main:main"

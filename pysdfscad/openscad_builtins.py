@@ -1,7 +1,7 @@
-import sdf
+import sdf #type: ignore
 from functools import reduce, wraps
 import inspect
-from loguru import logger
+from loguru import logger #type: ignore
 import itertools
 import lark
 import math
@@ -12,19 +12,41 @@ from pathlib import Path
 from urllib.request import urlopen
 import urllib.parse
 from zipfile import ZipFile
-from io import BytesIO
+import typing
 
 dirs = AppDirs("pySdfScad", "pySdfScad")
 
+Geometry = typing.Iterator[sdf.SDF3|sdf.SDF2]
+
+def child(func=lambda: tuple()):
+    def indexer(idx=None):
+        def inner(module_children):
+            if not idx:
+                yield from func()
+            elif isinstance(idx,int):
+                yield list(func())[idx]
+            else:
+                result = list(func())
+                for i in idx:
+                    yield result[i]
+        return inner
+    return indexer
+
+no_children = child()
+
+def module_children():
+    def inner(children=no_children):
+        yield from children()
+    return inner
+
 def module_echo(*args,**kwargs):
-    def inner(children=lambda:()):
+    def inner(children):
         out = [repr(i) for i in args]
         for k,v in kwargs.items():
             k=k.removeprefix("var_")
             out.append(k+"="+repr(v))
         logger.opt(depth=1).info("ECHO: "+", ".join(out))
-        return
-        yield
+        yield from children()(no_children)
     return inner
 
 def div(left,right):
@@ -52,6 +74,7 @@ def function_min(*a):
 var_undef = None
 var_true = True
 var_false = False
+
 
 class Range:
     """Generator that works like an openscad range
@@ -90,15 +113,9 @@ def scad_range(start,stop,step):
 #    return N(i)
 
 def module_sphere(var_r):
-    def inner(children=lambda:()):
+    def inner(children):
         yield sdf.sphere(var_r)
     return inner
-
-def module_children():
-    def _inner(children=lambda:()):
-        logger.debug("No children, so returning default")
-        yield from children
-    return _inner
 
 def module_cylinder(var_r=0, var_r1=None, var_r2=None, var_h=None, var_center=False):
 
@@ -128,22 +145,22 @@ def module_cube(var_size, var_center=False):
     return inner
 
 def module_union(var_smooth=1):
-    def inner(children=lambda:()):
-        children = list(children())
+    def inner(children):
+        children = list(children()(no_children))
         if not children: return
         yield reduce(lambda a,b: sdf.union(a,b,k=var_smooth), children)
     return inner
 
 def module_intersection(var_smooth=0):
-    def inner(children=lambda:()):
-        children = list(children())
+    def inner(children):
+        children = list(children()(no_children))
         if not children: return
         yield reduce(lambda a,b: sdf.intersection(a,b,k=var_smooth), children)
     return inner
 
 def module_difference(var_smooth=0):
-    def inner(children=lambda:()):
-        children = list(children())
+    def inner(children):
+        children = list(children()(no_children))
         if not children: return
         yield reduce(lambda a,b: sdf.difference(a,b,k=var_smooth), children)
     return inner
@@ -165,7 +182,7 @@ def twist(context,degrees):
     return union(context).twist(degrees)
 
 def module_translate(vector):
-    def inner(children=lambda:()):
+    def inner(children):
         if len(vector)==2:
             x,y = vector
             z=0

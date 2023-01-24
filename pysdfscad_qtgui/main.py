@@ -8,12 +8,11 @@ from pysdfscad.main import OpenscadFile, colorize_html
 from loguru import logger
 from pathlib import Path
 
-from PyQt5 import QtWidgets, uic, QtCore
+from PyQt5 import QtWidgets, uic, QtCore, QtGui
 from PyQt5.Qt import QColor, QApplication, QFont, QFontMetrics
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QMenuBar, QMenu,\
         QAction, QHBoxLayout, QWidget, QSplitter, QFileDialog, QShortcut, QMessageBox, QFrame,\
         QGridLayout, QTextEdit
-from PyQt5 import QtWidgets
 from PyQt5.QtCore import Qt, QSettings, QPoint, QSize, QThread, pyqtSlot, pyqtSignal, QObject
 from PyQt5.QtGui import QKeySequence
 from PyQt5 import QtCore
@@ -320,6 +319,8 @@ class MainUi(QMainWindow):
     @logger.catch
     def _render(self):
         self.openscadFile.text=self.editor.text()
+        self.astPreview.setText(self.openscadFile.as_ast())
+        self.pythonPreview.setText(self.openscadFile.as_python())
         result = list(self.openscadFile.run())
         if not result:
             logger.info("No top level geometry to render")
@@ -385,10 +386,10 @@ class MainUi(QMainWindow):
         logger.warning(f'Save your files \x1b[31mregularly\x1b[0m')
         logger.info(f"Started new render with file {self.openscadFile.file}")
         self.preview3d.clear()
+        self.astPreview.setText("")
+        self.pythonPreview.setText("")
         thread = Thread(target=self._render)
         thread.start()
-        self.astPreview.setText(self.openscadFile.as_ast())
-        self.pythonPreview.setText(self.openscadFile.as_python())
 
     def closeEvent(self, event):
         logger.remove(self._logger_handle_id)
@@ -444,6 +445,8 @@ class MainUi(QMainWindow):
 
 def main():
     app = QApplication(sys.argv)
+    app.setDesktopFileName("pysdfscad")
+    app.setWindowIcon(QtGui.QIcon(str(ui_dir/'logo.png')))
 #    win = Window()
     win=MainUi()
     win.show()
