@@ -12,13 +12,9 @@ jobs:
         shell: bash
       
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 360
+#    timeout-minutes: 360
 
     steps:
-      - name: Add extra packages for local compile
-        if: ${{ env.ACT }}
-        run: apt update && DEBIAN_FRONTEND=noninteractive apt-get -yq install patchelf build-essential
-
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
@@ -31,14 +27,10 @@ jobs:
         run: poetry install --all-extras --no-interaction --no-cache -vvv
         continue-on-error: true
 
-      - name: run compile
-        run: ./compile.sh
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v3
+      - run: ./compile.sh
+      # Optionally verify that it works (provided that it does not need user interaction)
+      #- run: ./dist/your-code/your-code
+      - uses: actions/upload-artifact@v2
         with:
-          name: ${{ runner.os }} Build
-          path: |
-            build/*.exe
-            build/*.bin
-            build/*.app/**/*
+          path: dist/*
+

@@ -10,6 +10,8 @@ packages = [
     { include = "pysdfscad_qtgui" },
 ]
 
+include = ["pysdfscad/openscad.lark"]
+
 [tool.poetry.dependencies]
 #python = "^3.10"
 python = ">=3.10,<3.12" #Required for pyinstaller
@@ -39,6 +41,7 @@ coverage = "^7.0.5"
 nuitka = "^1.4.5"
 ordered-set = "^4.1.0"
 zstandard = "^0.19.0"
+pyinstaller = "^5.8.0"
 
 [build-system]
 requires = ["poetry-core"]

@@ -14,6 +14,8 @@ from pygments import highlight
 from pygments.lexers import PythonLexer
 from pygments.formatters import TerminalTrueColorFormatter
 
+import pysdfscad.openscad_builtins
+
 def colorize_ansi(source):
     from pygments import highlight
     import pygments.lexers.python #Required or nuitka won't find it

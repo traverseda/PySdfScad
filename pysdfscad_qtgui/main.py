@@ -37,6 +37,9 @@ from collections import defaultdict
 
 logger = logger.opt(ansi=True)
 
+#Try to get pyinstaller to work...
+import OpenGL.platform.egl
+
 def themes():
     themeData = importlib.resources.open_binary('pysdfscad_qtgui', 'themes.json').read()
     data = json.loads(themeData)
