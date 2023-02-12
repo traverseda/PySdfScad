@@ -26,7 +26,6 @@ import numpy as np
 from PyQt5 import Qsci
 from PyQt5.Qsci import QsciScintilla
 from PyQt5.Qsci import QsciLexerCustom
-from pyqtconsole.console import PythonConsole
 
 from lark import Lark
 import json

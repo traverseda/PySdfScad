@@ -5,7 +5,6 @@ poetry run python -m nuitka --standalone \
         --include-data-dir=./pysdfscad_qtgui=./pysdfscad_qtgui \
         --include-data-dir=./pysdfscad=./pysdfscad \
         --include-data-dir=./pysdfscad=./pysdfscad \
-	--low-memory \
 	--onefile \
         pysdfscad_qtgui/main.py
 

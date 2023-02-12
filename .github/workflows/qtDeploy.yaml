@@ -12,21 +12,24 @@ jobs:
         shell: bash
       
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 100
+    timeout-minutes: 360
 
     steps:
       - name: Add extra packages for local compile
         if: ${{ env.ACT }}
-        run: apt update && apt install patchelf
+        run: apt update && DEBIAN_FRONTEND=noninteractive apt-get -yq install patchelf build-essential
+
       - uses: actions/checkout@v3
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - name: Install Poetry
-        uses: snok/install-poetry@v1
+
+      - name: install python poetry
+        uses: abatilo/actions-poetry@v2
 
       - name: install project
-        run: poetry install --all-extras
+        run: poetry install --all-extras --no-interaction --no-cache -vvv
+        continue-on-error: true
 
       - name: run compile
         run: ./compile.sh
