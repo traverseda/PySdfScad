@@ -31,6 +31,7 @@ jobs:
       # Optionally verify that it works (provided that it does not need user interaction)
       #- run: ./dist/your-code/your-code
       - uses: actions/upload-artifact@v2
+        name: build-${{matrix}}
         with:
           path: dist/*
 
