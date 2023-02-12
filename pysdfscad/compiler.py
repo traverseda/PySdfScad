@@ -56,7 +56,6 @@ import ast
 import itertools
 from pathlib import Path
 import functools
-import astor
 
 
 def lines(arg):
@@ -323,8 +322,6 @@ class OpenscadToPy(Transformer):
             target=target, iter=values, body=block, orelse=[], **lines(meta)
         )
         yield result
-        print("=======for_ast========")
-        print(astor.dump_tree(result, indentation="| "))
 
     def kwargs(self, meta, *children):
         return children
@@ -638,7 +635,6 @@ from loguru import logger  # type: ignore
 
 @logger.catch
 def main():
-    import astor  # type: ignore
 
     example_py = """
 foo = (1+1)/2
@@ -646,21 +642,18 @@ foo = (1+1)/2
     if example_py:
         print("====Python AST=====")
         result = ast.parse(example_py)
-        print(astor.dump_tree(result, indentation="| "))
         print("-------------------")
 
     tree = parser.parse(example_text)
     result = OpenscadToPy().transform(tree)
     print("====AST=====")
     print(result)
-    print(astor.dump_tree(result, indentation="| "))
     print("=====generated_code=====")
 
     from pygments import highlight
     from pygments.lexers import PythonLexer
     from pygments.formatters import TerminalTrueColorFormatter
 
-    source = astor.to_source(result, add_line_information=True)
     print(highlight(source, PythonLexer(), TerminalTrueColorFormatter()))
     print("-----------")
     print("===Running generated code===")

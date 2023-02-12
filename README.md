@@ -22,6 +22,14 @@ Ensure that [pipx](https://pypa.github.io/pipx/) is installed and working, then 
 
     pipx install "pysdfscad[qtgui] @ git+https://github.com/traverseda/PySdfScad.git"
 
+## Compiled versions
+
+working on making compiled versions available, you can compile this yourself using the
+command in `./compile.sh`.
+
+At the moment this build is not great, and it's definitly prefered to install this project
+as a python package if you are able to.
+
 # Faq
 
 ## Differences from openscad

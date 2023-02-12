@@ -5,7 +5,6 @@ from loguru import logger #type: ignore
 import itertools
 import lark
 import math
-from sympy import S,N
 import numpy as np
 from appdirs import AppDirs
 from pathlib import Path

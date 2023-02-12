@@ -16,6 +16,8 @@ from pygments.formatters import TerminalTrueColorFormatter
 
 def colorize_ansi(source):
     from pygments import highlight
+    import pygments.lexers.python #Required or nuitka won't find it
+    import pygments.formatters.terminal256
     from pygments.lexers import PythonLexer
     from pygments.formatters import TerminalTrueColorFormatter
     return highlight(source, PythonLexer(), TerminalTrueColorFormatter())
@@ -23,6 +25,7 @@ def colorize_ansi(source):
 def colorize_html(source):
     from pygments import highlight
     from pygments.lexers import PythonLexer
+    import pygments.formatters.html
     from pygments.formatters import HtmlFormatter
     return highlight(source, PythonLexer(), HtmlFormatter())
 

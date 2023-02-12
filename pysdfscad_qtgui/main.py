@@ -5,8 +5,10 @@ import pysdfscad
 import sdf
 #from pysdfscad.main import EvalOpenscad, openscad_parser
 from pysdfscad.main import OpenscadFile, colorize_html
+import importlib.resources
 from loguru import logger
 from pathlib import Path
+import os
 
 from PyQt5 import QtWidgets, uic, QtCore, QtGui
 from PyQt5.Qt import QColor, QApplication, QFont, QFontMetrics
@@ -37,7 +39,8 @@ from collections import defaultdict
 logger = logger.opt(ansi=True)
 
 def themes():
-    data = json.load(open(os.path.dirname(os.path.realpath(__file__))+"/themes.json","r"))
+    themeData = importlib.resources.open_binary('pysdfscad_qtgui', 'themes.json').read()
+    data = json.loads(themeData)
     out = {}
     for item in data['themes']:
         name = item['name']
@@ -239,14 +242,12 @@ class LoggerWriter:
 
 import os
 
-ui_dir=Path(__file__).parent
-
 log_format='<level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>'
 
 class MainUi(QMainWindow):
     def __init__(self):
         super().__init__() # Call the inherited classes __init__ method
-        uic.loadUi( ui_dir/'main.ui', self) # Load the .ui file
+        uic.loadUi(importlib.resources.open_binary('pysdfscad_qtgui', 'main.ui'), self)
         self.readSettings()
 
         self.openscadFile=OpenscadFile()
@@ -263,7 +264,7 @@ class MainUi(QMainWindow):
 
         self.tabWidget.addTab(self.editor,"Source")
 
-        self._exampleMenu(self.findChild(QMenu,"menuExamples"))
+        #self._exampleMenu(self.findChild(QMenu,"menuExamples"))
 
         self.astPreview=QsciScintilla()
         self.astPreview.setIndentationGuides(True)
@@ -318,6 +319,14 @@ class MainUi(QMainWindow):
 
     @logger.catch
     def _render(self):
+        try:
+            #Try and set background threads to a *low* priority,
+            # since people on the internet seem confused about this
+            # a higher nice value means your program is *nicer* to
+            # other programs, and will get out of their way.
+            os.nice(14)
+        except: pass
+
         self.openscadFile.text=self.editor.text()
         self.astPreview.setText(self.openscadFile.as_ast())
         self.pythonPreview.setText(self.openscadFile.as_python())
@@ -450,7 +459,7 @@ class MainUi(QMainWindow):
 def main():
     app = QApplication(sys.argv)
     app.setDesktopFileName("pysdfscad")
-    app.setWindowIcon(QtGui.QIcon(str(ui_dir/'logo.png')))
+#    app.setWindowIcon(QtGui.QIcon(str(ui_dir/'logo.png')))
 #    win = Window()
     win=MainUi()
     win.show()

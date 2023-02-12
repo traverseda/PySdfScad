@@ -1,0 +1,36 @@
+name: Python package
+
+on: [push]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+      
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Add extra packages for local compile
+        if: ${{ env.ACT }}
+        run: apt update && apt install patchelf
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: setup python-poetry
+        run: curl -sSL https://install.python-poetry.org | python3 -
+      - name: install project
+        run: poetry install --all-extras
+
+      - name: run compile
+        run: ./compile.sh
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ runner.os }} Build
+          path: |
+            build/*.exe
+            build/*.bin
+            build/*.app/**/*
