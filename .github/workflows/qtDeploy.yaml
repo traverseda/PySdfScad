@@ -12,6 +12,7 @@ jobs:
         shell: bash
       
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 100
 
     steps:
       - name: Add extra packages for local compile
