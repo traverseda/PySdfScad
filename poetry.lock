@@ -1477,4 +1477,4 @@ qtgui = ["pyqt5", "qscintilla", "pyqtgraph", "pyopengl"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.12" #Required for pyinstaller
-content-hash = "fab1567b790f68995c4429b528f9d25369a570fbd65b76e2e544a5c2a97f63a0"
+content-hash = "f88fda3ee1073a897f71fc498348d4b38747f273bad9b55e584223ce1363d033"
