@@ -1,6 +1,6 @@
 name: Python package
 
-on: [push, published]
+on: [push]
 
 jobs:
   build:
