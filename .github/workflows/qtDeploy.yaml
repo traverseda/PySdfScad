@@ -30,11 +30,11 @@ jobs:
 
       - uses: QQxiaoming/create-dmg-action@v0.0.2
         with:
-          name: artifacts/build-macOS/pysdfscad.dmg
-          srcdir: artifacts/build-macOS/pySdfScad-macOS.app
+          name: dist/pySdfScad-macOS.dmg
+          srcdir: dist/pySdfScad-macOS.app
         if: runner.os == 'macOS'
 
-      - run: rm artifacts/build-macOS/pySdfScad-macOS && rm artifacts/build-macOS/pySdfScad-macOS.app
+      - run: dist/pySdfScad-macOS && rm dist/pySdfScad-macOS.app
         if: runner.os == 'macOS'
 
       # Optionally verify that it works (provided that it does not need user interaction)
