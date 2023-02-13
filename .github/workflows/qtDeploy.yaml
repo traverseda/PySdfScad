@@ -28,13 +28,13 @@ jobs:
         continue-on-error: true
       - run: QT_QPA_PLATFORM=minimal poetry run pyinstaller pysdfscad_qtgui/main.py --onefile --name=pySdfScad-${{runner.os}} --collect-data  pysdfscad --collect-data pysdfscad_qtgui --windowed
 
-      - uses: QQxiaoming/create-dmg-action@v0.0.2
-        with:
-          name: dist/pySdfScad-macOS.dmg
-          srcdir: dist/pySdfScad-macOS.app
+      - run: brew install create-dmg 
+        if: runner.os == 'macOS'
+        
+      - run: create-dmg dist/PySdfScad-macOS.dmg dist/pySdfScad-macOS.app
         if: runner.os == 'macOS'
 
-      - run: dist/pySdfScad-macOS && rm dist/pySdfScad-macOS.app
+      - run: rm -R dist/pySdfScad-macOS.app 
         if: runner.os == 'macOS'
 
       # Optionally verify that it works (provided that it does not need user interaction)
