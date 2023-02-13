@@ -34,11 +34,16 @@ jobs:
         with:
           name: build-${{matrix.os}}
           path: dist/*
-
-      - uses: "marvinpinto/action-automatic-releases@latest"
-        with:
-          repo_token: "${{ secrets.GITHUB_TOKEN }}"
-          automatic_release_tag: "latest"
-          prerelease: true
-          title: "Development Build"
-          files: dist/*
+  release:
+    run-on: ubuntu-latest
+    steps:
+    - uses: actions/download-artifact@v3
+      with:
+        path: artifacts/
+    - uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest"
+        prerelease: true
+        title: "Development Build"
+        files: artifacts/*
