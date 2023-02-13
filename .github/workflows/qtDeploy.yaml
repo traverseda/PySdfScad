@@ -28,12 +28,22 @@ jobs:
         continue-on-error: true
       - run: QT_QPA_PLATFORM=minimal poetry run pyinstaller pysdfscad_qtgui/main.py --onefile --name=pySdfScad-${{runner.os}} --collect-data  pysdfscad --collect-data pysdfscad_qtgui --windowed
 
+      - uses: QQxiaoming/create-dmg-action@v0.0.2
+        with:
+          name: artifacts/build-macOS/pysdfscad.dmg
+          srcdir: artifacts/build-macOS/pySdfScad-macOS.app
+        if: runner.os == 'macOS'
+
+      - run: rm artifacts/build-macOS/pySdfScad-macOS && rm artifacts/build-macOS/pySdfScad-macOS.app
+        if: runner.os == 'macOS'
+
       # Optionally verify that it works (provided that it does not need user interaction)
       #- run: ./dist/your-code/your-code
       - uses: actions/upload-artifact@v3
         with:
           name: build-${{runner.os}}
           path: dist/*
+
   release:
     runs-on: ubuntu-latest
     needs: [build]
