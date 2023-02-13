@@ -32,7 +32,7 @@ jobs:
         if: runner.os == 'macOS'
         
       - run: create-dmg dist/PySdfScad-macOS.dmg dist/pySdfScad-macOS.app
-        if: runner.os == 'macOS
+        if: runner.os == 'macOS'
 
       - run: dist/pySdfScad-macOS && rm dist/pySdfScad-macOS.app
         if: runner.os == 'macOS'
