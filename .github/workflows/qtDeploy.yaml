@@ -34,7 +34,7 @@ jobs:
       - run: create-dmg dist/PySdfScad-macOS.dmg dist/pySdfScad-macOS.app
         if: runner.os == 'macOS'
 
-      - run: rm dist/pySdfScad-macOS.app
+      - run: rm dist/pySdfScad-macOS.app -r
         if: runner.os == 'macOS'
 
       # Optionally verify that it works (provided that it does not need user interaction)
