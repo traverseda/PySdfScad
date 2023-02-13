@@ -41,6 +41,8 @@ jobs:
     - uses: actions/download-artifact@v3
       with:
         path: artifacts/
+    - name: Display structure of downloaded files
+      run: ls -R artifacts/
     - uses: "marvinpinto/action-automatic-releases@latest"
       with:
         repo_token: "${{ secrets.GITHUB_TOKEN }}"
