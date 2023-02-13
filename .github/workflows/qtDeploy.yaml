@@ -26,7 +26,7 @@ jobs:
       - name: install project
         run: poetry install --all-extras --no-interaction --no-cache -vvv
         continue-on-error: true
-      - run: QT_QPA_PLATFORM=minimal poetry run pyinstaller pysdfscad_qtgui/main.py --onefile --name=pySdfScad-${{matrix-os}} --collect-data  pysdfscad --collect-data pysdfscad_qtgui --windowed
+      - run: QT_QPA_PLATFORM=minimal poetry run pyinstaller pysdfscad_qtgui/main.py --onefile --name=pySdfScad-${{matrix.os}} --collect-data  pysdfscad --collect-data pysdfscad_qtgui --windowed
 
       # Optionally verify that it works (provided that it does not need user interaction)
       #- run: ./dist/your-code/your-code
