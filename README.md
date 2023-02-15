@@ -22,7 +22,7 @@ Ensure that [pipx](https://pypa.github.io/pipx/) is installed and working, then 
 
     pipx install "pysdfscad[qtgui] @ git+https://github.com/traverseda/PySdfScad.git"
     
-You can also try downloading a pre-built binary from [here](https://github.com/traverseda/PySdfScad/tags).
+You can also try downloading a pre-built binary from [here](https://github.com/traverseda/PySdfScad/releases).
 These aren't currently tested.
 
 ## Compiled versions
