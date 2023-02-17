@@ -84,5 +84,5 @@ interpreter.
 I don't want to give a false impression that it works from this carefully staged screenshot,
 it mostly doesn't.
 
-![](Screenshot_0.png)
+![](docs/Screenshot_0.png)
 

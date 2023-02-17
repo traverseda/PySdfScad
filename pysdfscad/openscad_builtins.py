@@ -192,16 +192,18 @@ def module_difference(var_smooth=0):
         yield reduce(lambda a,b: sdf.difference(a,b,k=var_smooth), children)
     return inner
 
-def blend(context,ratio=0.5):
-    children=context.functions['children_list']()
-    child1 = children[0]
-    child2 = reduce(sdf.union,children[1:])
-    return child1.blend(child2,k=ratio)
+def module_blend(var_ratio=0.5):
+    def inner(children):
+        children = list(children()(no_children))
+        child1 = children[0]
+        child2 = reduce(sdf.union,children[1:])
+        yield child1.blend(child2,k=var_ratio)
+    return inner
 
-def module_shell(context,thickness=10):
-    def inner(children=lambda:()):
-        children = list(module_union()(children()))[0]
-        return children.shell(thickness)
+def module_shell(var_thickness=10):
+    def inner(children):
+        children = list(module_union()(children))[0]
+        yield children.shell(var_thickness)
     return inner
 
 def twist(context,degrees):

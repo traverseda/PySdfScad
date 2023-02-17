@@ -3,6 +3,7 @@ from loguru import logger
 import pathlib, sys
 from pathlib import Path
 from pysdfscad.compiler import OpenscadToPy
+import numpy as np
 import astor
 
 #We can get general language definitions here: https://en.wikibooks.org/wiki/OpenSCAD_User_Manual/The_OpenSCAD_Language#Chapter_1_--_General
@@ -68,6 +69,50 @@ class OpenscadFile():
             scad_locals,
         )
         return list(scad_locals['main']())
+
+    def as_image(self):
+        from PyQt5 import QtWidgets, QtCore, QtGui, QtOpenGL
+        import pyqtgraph.opengl as gl
+        import pyqtgraph as pg
+
+        app = QtWidgets.QApplication([])
+
+        #Horrible hack to reset the shared opengl context
+
+        viewport = gl.GLViewWidget()        
+        viewport.setCameraPosition(distance=40)
+
+        result = list(self.run())[0]
+
+        points = result.generate()
+        points, cells = np.unique(points, axis=0, return_inverse=True)
+        cells = cells.reshape((-1, 3))
+    
+        meshdata = gl.MeshData(vertexes=points, faces=cells)
+        mesh = gl.GLMeshItem(meshdata=meshdata,
+                             smooth=False, drawFaces=True,
+                             drawEdges=False,
+                             shader="normalColor",
+                             color = (1,1,1,1), edgeColor=(0.2, 0.5, 0.2, 1)
+                             )
+
+        g = gl.GLGridItem()
+        g.setSize(200, 200)
+        g.setSpacing(10, 10) 
+
+        a=gl.GLAxisItem()                      
+        a.setSize(10,10,10)
+
+        viewport.addItem(a)
+        viewport.addItem(g)
+        viewport.addItem(mesh)
+        viewport.show()
+
+        imageData = viewport.renderToArray((1000, 1000))
+        image = pg.makeQImage(imageData).transformed(QtGui.QTransform().rotate(90))
+
+        return image 
+
     def as_ast(self):
         return astor.dump_tree(self.ast())
     def as_python(self):

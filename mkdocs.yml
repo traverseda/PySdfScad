@@ -1,0 +1,18 @@
+site_name: Hephorge
+theme:
+  name: readthedocs
+  highlightjs: true
+  hljs_languages:
+    - python
+    - openscad
+
+plugins:
+  - mkdocstrings
+  - search
+  - macros:
+      module_name: doc_extra
+
+nav:
+  - 3D_objects.md
+  - transformations.md
+  - api.md
