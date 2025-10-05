@@ -22,7 +22,7 @@
         }
     },
     "remoteUser": "vscode",
-    "postCreateCommand": "poetry install --with dev,qtgui --no-root && poetry run pip install PyQt5 QScintilla PyQtGraph PyOpenGL",
+    "postCreateCommand": "poetry install --with dev,qtgui --no-root",
     "mounts": [
         "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
     ],
