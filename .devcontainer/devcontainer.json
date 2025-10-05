@@ -1,0 +1,30 @@
+{
+    "name": "pysdfscad",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "njpwerner.autodocstring",
+                "ms-python.black-formatter"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/home/vscode/.local/bin/poetry",
+                "python.poetryPath": "/home/vscode/.local/bin/poetry",
+                "python.testing.pytestEnabled": true,
+                "editor.formatOnSave": true,
+                "python.formatting.provider": "black"
+            }
+        }
+    },
+    "remoteUser": "vscode",
+    "postCreateCommand": "poetry install --with dev,qtgui --no-root && poetry run pip install PyQt5 QScintilla PyQtGraph PyOpenGL",
+    "mounts": [
+        "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+    ],
+    "workspaceFolder": "/workspace"
+}
