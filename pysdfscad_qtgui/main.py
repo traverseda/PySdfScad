@@ -138,6 +138,56 @@ import os
 
 log_format='<level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>'
 
+class RenderWorker(QObject):
+    ast_ready = pyqtSignal(str)
+    python_ready = pyqtSignal(str)
+    mesh_ready = pyqtSignal(object)
+    log_message = pyqtSignal(str)
+    finished = pyqtSignal()
+
+    def __init__(self, openscad_file):
+        super().__init__()
+        self.openscad_file = openscad_file
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            #Try and set background threads to a *low* priority,
+            # since people on the internet seem confused about this
+            # a higher nice value means your program is *nicer* to
+            # other programs, and will get out of their way.
+            try:
+                os.nice(14)
+            except: pass
+
+            ast_text = self.openscad_file.as_ast()
+            self.ast_ready.emit(ast_text)
+
+            python_text = self.openscad_file.as_python()
+            self.python_ready.emit(python_text)
+
+            result = list(self.openscad_file.run())
+            if not result:
+                self.log_message.emit("No top level geometry to render")
+            else:
+                res = result[0]
+                if isinstance(res, sdf.SDF2):
+                    res = res.extrude(0.1)
+
+                with redirect_stdout(LoggerWriter(logger.opt(depth=1).info)):
+                    points = res.generate()
+
+                points, cells = np.unique(points, axis=0, return_inverse=True)
+                cells = cells.reshape((-1, 3))
+
+                self.mesh_ready.emit((points, cells, res))
+
+        except Exception:
+            logger.exception("Error during render")
+        finally:
+            self.finished.emit()
+
+
 class MainUi(QMainWindow):
     def __init__(self):
         super().__init__() # Call the inherited classes __init__ method
@@ -167,6 +217,7 @@ class MainUi(QMainWindow):
 
         self.openscadFile=OpenscadFile()
         self.mesh=None
+        self.result=None
 
         self.preview3d=gl.GLViewWidget(self.sideSplitter)
         self.preview3d.setCameraPosition(distance=40)
@@ -228,51 +279,29 @@ class MainUi(QMainWindow):
         self.setWindowTitle(f"{self.openscadFile.file} - pySdfScad")
 
 
-    @logger.catch
-    def _render(self):
-        try:
-            #Try and set background threads to a *low* priority,
-            # since people on the internet seem confused about this
-            # a higher nice value means your program is *nicer* to
-            # other programs, and will get out of their way.
-            os.nice(14)
-        except: pass
+    def update_mesh(self, data):
+        points, cells, result_obj = data
+        self.result = result_obj
+        self.mesh = (points, cells)
 
-        self.openscadFile.text=self.editor.toPlainText()
-        self.astPreview.setPlainText(self.openscadFile.as_ast())
-        self.pythonPreview.setPlainText(self.openscadFile.as_python())
-        result = list(self.openscadFile.run())
-        if not result:
-            logger.info("No top level geometry to render")
-        else:
-            self.result=result[0]
-            if isinstance(self.result,sdf.SDF2):
-                self.result=self.result.extrude(0.1)
-            import numpy as np
-            with redirect_stdout(LoggerWriter(logger.opt(depth=1).info)):
-                points = self.result.generate()
-            points, cells = np.unique(points, axis=0, return_inverse=True)
-            cells = cells.reshape((-1, 3))
-            self.mesh=(points,cells)
-    
-            meshdata = gl.MeshData(vertexes=points, faces=cells)
-            mesh = gl.GLMeshItem(meshdata=meshdata,
+        meshdata = gl.MeshData(vertexes=points, faces=cells)
+        mesh = gl.GLMeshItem(meshdata=meshdata,
                                  smooth=False, drawFaces=True,
                                  drawEdges=False,
                                  shader="normalColor",
                                  color = (1,1,1,1), edgeColor=(0.2, 0.5, 0.2, 1)
                                  )
-            self.preview3d.clear()
-            g = gl.GLGridItem()
-            g.setSize(200, 200)
-            g.setSpacing(10, 10)
+        self.preview3d.clear()
+        g = gl.GLGridItem()
+        g.setSize(200, 200)
+        g.setSpacing(10, 10)
 
-            a=gl.GLAxisItem()
-            a.setSize(10,10,10)
+        a=gl.GLAxisItem()
+        a.setSize(10,10,10)
 
-            self.preview3d.addItem(g)
-            self.preview3d.addItem(a)
-            self.preview3d.addItem(mesh)
+        self.preview3d.addItem(g)
+        self.preview3d.addItem(a)
+        self.preview3d.addItem(mesh)
 
     def exportMesh(self):
         if not self.result:
@@ -312,8 +341,21 @@ class MainUi(QMainWindow):
         self.preview3d.clear()
         self.astPreview.setPlainText("")
         self.pythonPreview.setPlainText("")
-        thread = Thread(target=self._render)
-        thread.start()
+        
+        self.openscadFile.text = self.editor.toPlainText()
+
+        self.thread = QThread()
+        self.worker = RenderWorker(self.openscadFile)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.ast_ready.connect(self.astPreview.setPlainText)
+        self.worker.python_ready.connect(self.pythonPreview.setPlainText)
+        self.worker.mesh_ready.connect(self.update_mesh)
+        self.worker.log_message.connect(logger.info)
+        self.thread.start()
 
     def closeEvent(self, event):
         logger.remove(self._logger_handle_id)
