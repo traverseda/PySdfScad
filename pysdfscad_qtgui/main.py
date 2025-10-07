@@ -11,9 +11,9 @@ from pathlib import Path
 import os
 
 from PySide6 import QtWidgets, QtCore, QtGui
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QKeySequence, QAction
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QKeySequence, QAction, QShortcut
 from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMenuBar, QMenu,\
-        QHBoxLayout, QWidget, QSplitter, QFileDialog, QShortcut, QMessageBox, QFrame,\
+        QHBoxLayout, QWidget, QSplitter, QFileDialog, QMessageBox, QFrame,\
         QGridLayout, QTextEdit
 from PySide6.QtCore import Qt, QSettings, QPoint, QSize, QThread, Slot as pyqtSlot, Signal as pyqtSignal, QObject, QBuffer, QIODevice
 from PySide6.QtUiTools import QUiLoader
@@ -22,7 +22,6 @@ import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import numpy as np
 
-from PySide6.Qsci import QsciScintilla, QsciLexerCustom, QsciLexerPython
 
 from lark import Lark
 import json
@@ -71,110 +70,6 @@ class THEME:
                  'brightWhite','foreground','background')
 
 
-class LexerOpenscad(QsciLexerCustom):
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.create_parser()
-        self.create_styles()
-
-    def create_styles(self):
-        theme = themes()['BelafonteDay']
-        self.theme={}
-        for idx, name in enumerate(THEME.all_items):
-            color = theme[name].lstrip('#')
-            rgb = QColor(*(int(color[i:i+2], 16) for i in (0, 2, 4)))
-            self.theme[name]=rgb
-            self.setColor(rgb, idx)
-            self.setFont(self.parent().font(), idx)
-
-
-        self.token_styles = {
-                "NAME": THEME.blue,
-                "SEMICOLON": THEME.brightPurple,
-                "COMMENT": THEME.cyan,
-                "ESCAPED_STRING": THEME.yellow,
-                "NUMBER": THEME.yellow,
-                "LPAR": THEME.red,
-                "RPAR": THEME.red,
-                "LBRACE": THEME.red,
-                "RBRACE": THEME.brightRed,
-        }
-
-    def create_parser(self):
-        grammar = pkgutil.get_data("pysdfscad","openscad.lark").decode("utf-8")
-        #self.lark = Lark(grammar, parser=None, lexer='basic')
-        self.lark = Lark(grammar, parser='earley', lexer='dynamic_complete')
-        # All tokens: print([t.name for t in self.lark.parser.lexer.tokens])
-
-#    def defaultPaper(self, style):
-#        return QColor(39, 40, 34)
-
-    def language(self):
-        return "OpenScad"
-
-    def description(self, style):
-        return {v: k for k, v in self.token_styles.items()}.get(style, "")
-
-    def styleText(self, start, end):
-
-        self.startStyling(start)
-        text = self.parent().bytes(start,end)
-        text = bytes(text).decode("utf-8").replace('\x00', '')
-        last_pos = 0
-
-        try:
-            for token in self.lark.lex(text):
-                ws_len = token.start_pos - last_pos
-                if ws_len:
-                    self.setStyling(ws_len, 0)    # whitespace
-
-                token_len = len(bytearray(token, "utf-8"))
-                self.setStyling(
-                    token_len, self.token_styles.get(token.type, 0))
-
-                last_pos = token.start_pos + token_len
-        except Exception as e:
-            print(e)
-
-
-class EditorAll(QsciScintilla):
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        # Set font defaults
-        font = QFont()
-        font.setFamily('Consolas')
-        font.setFixedPitch(True)
-        font.setPointSize(10)
-        font.setBold(True)
-        self.setFont(font)
-
-        # Set margin defaults
-        fontmetrics = QFontMetrics(font)
-        self.setMarginsFont(font)
-        self.setMarginWidth(0, fontmetrics.width("000") + 6)
-        self.setMarginLineNumbers(0, True)
-        #self.setMarginsForegroundColor(QColor(128, 128, 128))
-        #self.setMarginsBackgroundColor(QColor(39, 40, 34))
-        self.setMarginType(1, self.SymbolMargin)
-        self.setMarginWidth(1, 12)
-
-        # Set indentation defaults
-        self.setIndentationsUseTabs(False)
-        self.setIndentationWidth(4)
-        self.setBackspaceUnindents(True)
-        #self.setAutoIndent(True)
-
-        self.setIndentationGuides(True)
-        self.SendScintilla(QsciScintilla.SCI_SETMULTIPLESELECTION, True)
-        self.SendScintilla(QsciScintilla.SCI_SETMULTIPASTE, 1)
-        self.SendScintilla(
-            QsciScintilla.SCI_SETADDITIONALSELECTIONTYPING, True)
-
-        lexer = LexerOpenscad(self)
-        self.setLexer(lexer)
 
 
 from pathlib import Path
@@ -263,29 +158,25 @@ class MainUi(QMainWindow):
         self.logger=QTextEditLogger(self.sideSplitter)
         self._logger_handle_id=logger.add(self.logger, colorize=True,format=log_format)
 
-        self.editor=EditorAll()
-        self.editor.setText(EXAMPLE_TEXT)
+        self.editor=QTextEdit()
+        font = QFont()
+        font.setFamily('Consolas')
+        font.setFixedPitch(True)
+        font.setPointSize(10)
+        font.setBold(True)
+        self.editor.setFont(font)
+        self.editor.setPlainText(EXAMPLE_TEXT)
 
         self.tabWidget.addTab(self.editor,"Source")
 
         #self._exampleMenu(self.findChild(QMenu,"menuExamples"))
 
-        self.astPreview=QsciScintilla()
-        self.astPreview.setIndentationGuides(True)
-        self.astPreview.setIndentationsUseTabs(False)
-        self.astPreview.setIndentationWidth(4)
-        self.astPreview.setLexer(QsciLexerPython(self.astPreview))
+        self.astPreview=QTextEdit()
         self.astPreview.setReadOnly(True)
-        self.astPreview.update_in_place=False
         self.tabWidget.addTab(self.astPreview,"AST")
 
-        self.pythonPreview=QsciScintilla()
-        self.pythonPreview.setIndentationGuides(True)
-        self.pythonPreview.setIndentationsUseTabs(False)
-        self.pythonPreview.setIndentationWidth(4)
-        self.pythonPreview.setLexer(QsciLexerPython(self.pythonPreview))
+        self.pythonPreview=QTextEdit()
         self.pythonPreview.setReadOnly(True)
-        self.pythonPreview.update_in_place=False
         self.tabWidget.addTab(self.pythonPreview,"Python")
 
         self._connectActions()
@@ -331,9 +222,9 @@ class MainUi(QMainWindow):
             os.nice(14)
         except: pass
 
-        self.openscadFile.text=self.editor.text()
-        self.astPreview.setText(self.openscadFile.as_ast())
-        self.pythonPreview.setText(self.openscadFile.as_python())
+        self.openscadFile.text=self.editor.toPlainText()
+        self.astPreview.setPlainText(self.openscadFile.as_ast())
+        self.pythonPreview.setPlainText(self.openscadFile.as_python())
         result = list(self.openscadFile.run())
         if not result:
             logger.info("No top level geometry to render")
@@ -387,14 +278,14 @@ class MainUi(QMainWindow):
             filename = dlg.selectedFiles()[0]
             self.openscadFile.file=Path(filename)
             self.openscadFile.reload()
-            self.editor.setText(self.openscadFile.text)
+            self.editor.setPlainText(self.openscadFile.text)
         self.setWindowTitle(f"{self.openscadFile.file} - pySdfScad")
 
     def saveFile(self):
         if not self.openscadFile.file:
             self.saveFileAs()
         else:
-            self.openscadFile.text=self.editor.text()
+            self.openscadFile.text=self.editor.toPlainText()
             self.openscadFile.save()
 
     def render(self):
@@ -403,8 +294,8 @@ class MainUi(QMainWindow):
         logger.warning(f'Save your files \x1b[31mregularly\x1b[0m')
         logger.info(f"Started new render with file {self.openscadFile.file}")
         self.preview3d.clear()
-        self.astPreview.setText("")
-        self.pythonPreview.setText("")
+        self.astPreview.setPlainText("")
+        self.pythonPreview.setPlainText("")
         thread = Thread(target=self._render)
         thread.start()
 
@@ -424,7 +315,7 @@ class MainUi(QMainWindow):
             logger.warning("Couldn't restore window state from settings")
 
     def _loadExample(self,file):
-        self.editor.setText(file.read_text())
+        self.editor.setPlainText(file.read_text())
 
     def _exampleMenu(self,parent):
         """Generate examples based on folder structure
@@ -454,7 +345,7 @@ class MainUi(QMainWindow):
                 else:
                     text = value.read_text
                     action = parent.addAction(key)
-                    action.triggered.connect(lambda: self.editor.setText(text()))
+                    action.triggered.connect(lambda: self.editor.setPlainText(text()))
 
         menu_items=list(recursive_menu(nest,parent))
         parent.addMenu(menu_items[0])
