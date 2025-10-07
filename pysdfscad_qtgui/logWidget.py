@@ -1,7 +1,7 @@
 import logging
-from PyQt5.QtCore import QObject, pyqtSlot, pyqtSignal
-from PyQt5.QtWidgets import QTextEdit
-from PyQt5.QtGui import QTextCursor
+from PySide6.QtCore import QObject, Slot as pyqtSlot, Signal as pyqtSignal
+from PySide6.QtWidgets import QTextEdit
+from PySide6.QtGui import QTextCursor
 import shlex
 import re
 import html
@@ -35,7 +35,7 @@ class QTextEditLogger(QTextEdit,logging.Handler):
             self._text.append(msg)
         self._update_signal.emit()
 
-    @pyqtSlot(object)
+    @pyqtSlot()
     def update(self):
         #ToDO, ideally we wouldn't re-render the entire thing every time
         # poor performance for the scroll bars
