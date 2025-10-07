@@ -155,13 +155,13 @@ class MainUi(QMainWindow):
 
         self.sideSplitter = self.findChild(QSplitter, "sideSplitter")
         self.tabWidget = self.findChild(QTabWidget, "tabWidget")
-        self.action_New = self.findChild(QAction, "action_New")
-        self.actionOpen = self.findChild(QAction, "actionOpen")
-        self.actionSave = self.findChild(QAction, "actionSave")
-        self.actionSave_As = self.findChild(QAction, "actionSave_As")
-        self.actionExit = self.findChild(QAction, "actionExit")
-        self.actionRender = self.findChild(QAction, "actionRender")
-        self.actionExport_Mesh = self.findChild(QAction, "actionExport_Mesh")
+        self.action_New = self.ui_window.findChild(QAction, "action_New")
+        self.actionOpen = self.ui_window.findChild(QAction, "actionOpen")
+        self.actionSave = self.ui_window.findChild(QAction, "actionSave")
+        self.actionSave_As = self.ui_window.findChild(QAction, "actionSave_As")
+        self.actionExit = self.ui_window.findChild(QAction, "actionExit")
+        self.actionRender = self.ui_window.findChild(QAction, "actionRender")
+        self.actionExport_Mesh = self.ui_window.findChild(QAction, "actionExport_Mesh")
 
         self.readSettings()
 
