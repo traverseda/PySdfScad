@@ -89,3 +89,8 @@ it mostly doesn't.
 
 ![](docs/Screenshot_0.png)
 
+## Development
+
+I use dev containers and nixos.
+
+`nix-shell -p xorg.xhost --run "xhost +local:docker"`
