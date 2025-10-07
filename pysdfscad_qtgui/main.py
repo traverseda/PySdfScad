@@ -14,7 +14,7 @@ from PySide6 import QtWidgets, QtCore, QtGui
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QKeySequence, QAction, QShortcut
 from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMenuBar, QMenu,\
         QHBoxLayout, QWidget, QSplitter, QFileDialog, QMessageBox, QFrame,\
-        QGridLayout, QTextEdit
+        QGridLayout, QTextEdit, QTabWidget
 from PySide6.QtCore import Qt, QSettings, QPoint, QSize, QThread, Slot as pyqtSlot, Signal as pyqtSignal, QObject, QBuffer, QIODevice
 from PySide6.QtUiTools import QUiLoader
 
@@ -147,6 +147,17 @@ class MainUi(QMainWindow):
         ui_buffer.setData(ui_file_data)
         ui_buffer.open(QIODevice.ReadOnly)
         loader.load(ui_buffer, self)
+
+        self.sideSplitter = self.findChild(QSplitter, "sideSplitter")
+        self.tabWidget = self.findChild(QTabWidget, "tabWidget")
+        self.action_New = self.findChild(QAction, "action_New")
+        self.actionOpen = self.findChild(QAction, "actionOpen")
+        self.actionSave = self.findChild(QAction, "actionSave")
+        self.actionSave_As = self.findChild(QAction, "actionSave_As")
+        self.actionExit = self.findChild(QAction, "actionExit")
+        self.actionRender = self.findChild(QAction, "actionRender")
+        self.actionExport_Mesh = self.findChild(QAction, "actionExport_Mesh")
+
         self.readSettings()
 
         self.openscadFile=OpenscadFile()
