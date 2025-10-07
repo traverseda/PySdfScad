@@ -10,22 +10,19 @@ from loguru import logger
 from pathlib import Path
 import os
 
-from PyQt5 import QtWidgets, uic, QtCore, QtGui
-from PyQt5.Qt import QColor, QApplication, QFont, QFontMetrics
-from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QMenuBar, QMenu,\
-        QAction, QHBoxLayout, QWidget, QSplitter, QFileDialog, QShortcut, QMessageBox, QFrame,\
+from PySide6 import QtWidgets, QtCore, QtGui
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QKeySequence, QAction
+from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMenuBar, QMenu,\
+        QHBoxLayout, QWidget, QSplitter, QFileDialog, QShortcut, QMessageBox, QFrame,\
         QGridLayout, QTextEdit
-from PyQt5.QtCore import Qt, QSettings, QPoint, QSize, QThread, pyqtSlot, pyqtSignal, QObject
-from PyQt5.QtGui import QKeySequence
-from PyQt5 import QtCore
+from PySide6.QtCore import Qt, QSettings, QPoint, QSize, QThread, Slot as pyqtSlot, Signal as pyqtSignal, QObject, QBuffer, QIODevice
+from PySide6.QtUiTools import QUiLoader
 
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import numpy as np
 
-from PyQt5 import Qsci
-from PyQt5.Qsci import QsciScintilla
-from PyQt5.Qsci import QsciLexerCustom
+from PySide6.Qsci import QsciScintilla, QsciLexerCustom, QsciLexerPython
 
 from lark import Lark
 import json
@@ -249,7 +246,12 @@ log_format='<level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</c
 class MainUi(QMainWindow):
     def __init__(self):
         super().__init__() # Call the inherited classes __init__ method
-        uic.loadUi(importlib.resources.open_binary('pysdfscad_qtgui', 'main.ui'), self)
+        loader = QUiLoader()
+        ui_file_data = importlib.resources.open_binary('pysdfscad_qtgui', 'main.ui').read()
+        ui_buffer = QBuffer()
+        ui_buffer.setData(ui_file_data)
+        ui_buffer.open(QIODevice.ReadOnly)
+        loader.load(ui_buffer, self)
         self.readSettings()
 
         self.openscadFile=OpenscadFile()
@@ -272,7 +274,7 @@ class MainUi(QMainWindow):
         self.astPreview.setIndentationGuides(True)
         self.astPreview.setIndentationsUseTabs(False)
         self.astPreview.setIndentationWidth(4)
-        self.astPreview.setLexer(Qsci.QsciLexerPython(self.astPreview))
+        self.astPreview.setLexer(QsciLexerPython(self.astPreview))
         self.astPreview.setReadOnly(True)
         self.astPreview.update_in_place=False
         self.tabWidget.addTab(self.astPreview,"AST")
@@ -281,7 +283,7 @@ class MainUi(QMainWindow):
         self.pythonPreview.setIndentationGuides(True)
         self.pythonPreview.setIndentationsUseTabs(False)
         self.pythonPreview.setIndentationWidth(4)
-        self.pythonPreview.setLexer(Qsci.QsciLexerPython(self.pythonPreview))
+        self.pythonPreview.setLexer(QsciLexerPython(self.pythonPreview))
         self.pythonPreview.setReadOnly(True)
         self.pythonPreview.update_in_place=False
         self.tabWidget.addTab(self.pythonPreview,"Python")
