@@ -10,22 +10,18 @@ from loguru import logger
 from pathlib import Path
 import os
 
-from PyQt5 import QtWidgets, uic, QtCore, QtGui
-from PyQt5.Qt import QColor, QApplication, QFont, QFontMetrics
-from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QMenuBar, QMenu,\
-        QAction, QHBoxLayout, QWidget, QSplitter, QFileDialog, QShortcut, QMessageBox, QFrame,\
-        QGridLayout, QTextEdit
-from PyQt5.QtCore import Qt, QSettings, QPoint, QSize, QThread, pyqtSlot, pyqtSignal, QObject
-from PyQt5.QtGui import QKeySequence
-from PyQt5 import QtCore
+from PySide6 import QtWidgets, QtCore, QtGui
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QKeySequence, QAction, QShortcut
+from PySide6.QtWidgets import QApplication, QLabel, QMainWindow, QMenuBar, QMenu,\
+        QHBoxLayout, QWidget, QSplitter, QFileDialog, QMessageBox, QFrame,\
+        QGridLayout, QTextEdit, QTabWidget
+from PySide6.QtCore import Qt, QSettings, QPoint, QSize, QThread, Slot as pyqtSlot, Signal as pyqtSignal, QObject, QBuffer, QIODevice
+from PySide6.QtUiTools import QUiLoader
 
 import pyqtgraph as pg
 import pyqtgraph.opengl as gl
 import numpy as np
 
-from PyQt5 import Qsci
-from PyQt5.Qsci import QsciScintilla
-from PyQt5.Qsci import QsciLexerCustom
 
 from lark import Lark
 import json
@@ -74,110 +70,6 @@ class THEME:
                  'brightWhite','foreground','background')
 
 
-class LexerOpenscad(QsciLexerCustom):
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.create_parser()
-        self.create_styles()
-
-    def create_styles(self):
-        theme = themes()['BelafonteDay']
-        self.theme={}
-        for idx, name in enumerate(THEME.all_items):
-            color = theme[name].lstrip('#')
-            rgb = QColor(*(int(color[i:i+2], 16) for i in (0, 2, 4)))
-            self.theme[name]=rgb
-            self.setColor(rgb, idx)
-            self.setFont(self.parent().font(), idx)
-
-
-        self.token_styles = {
-                "NAME": THEME.blue,
-                "SEMICOLON": THEME.brightPurple,
-                "COMMENT": THEME.cyan,
-                "ESCAPED_STRING": THEME.yellow,
-                "NUMBER": THEME.yellow,
-                "LPAR": THEME.red,
-                "RPAR": THEME.red,
-                "LBRACE": THEME.red,
-                "RBRACE": THEME.brightRed,
-        }
-
-    def create_parser(self):
-        grammar = pkgutil.get_data("pysdfscad","openscad.lark").decode("utf-8")
-        #self.lark = Lark(grammar, parser=None, lexer='basic')
-        self.lark = Lark(grammar, parser='earley', lexer='dynamic_complete')
-        # All tokens: print([t.name for t in self.lark.parser.lexer.tokens])
-
-#    def defaultPaper(self, style):
-#        return QColor(39, 40, 34)
-
-    def language(self):
-        return "OpenScad"
-
-    def description(self, style):
-        return {v: k for k, v in self.token_styles.items()}.get(style, "")
-
-    def styleText(self, start, end):
-
-        self.startStyling(start)
-        text = self.parent().bytes(start,end)
-        text = bytes(text).decode("utf-8").replace('\x00', '')
-        last_pos = 0
-
-        try:
-            for token in self.lark.lex(text):
-                ws_len = token.start_pos - last_pos
-                if ws_len:
-                    self.setStyling(ws_len, 0)    # whitespace
-
-                token_len = len(bytearray(token, "utf-8"))
-                self.setStyling(
-                    token_len, self.token_styles.get(token.type, 0))
-
-                last_pos = token.start_pos + token_len
-        except Exception as e:
-            print(e)
-
-
-class EditorAll(QsciScintilla):
-
-    def __init__(self, parent=None):
-        super().__init__(parent)
-
-        # Set font defaults
-        font = QFont()
-        font.setFamily('Consolas')
-        font.setFixedPitch(True)
-        font.setPointSize(10)
-        font.setBold(True)
-        self.setFont(font)
-
-        # Set margin defaults
-        fontmetrics = QFontMetrics(font)
-        self.setMarginsFont(font)
-        self.setMarginWidth(0, fontmetrics.width("000") + 6)
-        self.setMarginLineNumbers(0, True)
-        #self.setMarginsForegroundColor(QColor(128, 128, 128))
-        #self.setMarginsBackgroundColor(QColor(39, 40, 34))
-        self.setMarginType(1, self.SymbolMargin)
-        self.setMarginWidth(1, 12)
-
-        # Set indentation defaults
-        self.setIndentationsUseTabs(False)
-        self.setIndentationWidth(4)
-        self.setBackspaceUnindents(True)
-        #self.setAutoIndent(True)
-
-        self.setIndentationGuides(True)
-        self.SendScintilla(QsciScintilla.SCI_SETMULTIPLESELECTION, True)
-        self.SendScintilla(QsciScintilla.SCI_SETMULTIPASTE, 1)
-        self.SendScintilla(
-            QsciScintilla.SCI_SETADDITIONALSELECTIONTYPING, True)
-
-        lexer = LexerOpenscad(self)
-        self.setLexer(lexer)
 
 
 from pathlib import Path
@@ -246,14 +138,86 @@ import os
 
 log_format='<level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>'
 
+class RenderWorker(QObject):
+    ast_ready = pyqtSignal(str)
+    python_ready = pyqtSignal(str)
+    mesh_ready = pyqtSignal(object)
+    log_message = pyqtSignal(str)
+    finished = pyqtSignal()
+
+    def __init__(self, openscad_file):
+        super().__init__()
+        self.openscad_file = openscad_file
+
+    @pyqtSlot()
+    def run(self):
+        try:
+            #Try and set background threads to a *low* priority,
+            # since people on the internet seem confused about this
+            # a higher nice value means your program is *nicer* to
+            # other programs, and will get out of their way.
+            try:
+                os.nice(14)
+            except: pass
+
+            ast_text = self.openscad_file.as_ast()
+            self.ast_ready.emit(ast_text)
+
+            python_text = self.openscad_file.as_python()
+            self.python_ready.emit(python_text)
+
+            result = list(self.openscad_file.run())
+            if not result:
+                self.log_message.emit("No top level geometry to render")
+            else:
+                res = result[0]
+                if isinstance(res, sdf.SDF2):
+                    res = res.extrude(0.1)
+
+                with redirect_stdout(LoggerWriter(logger.opt(depth=1).info)):
+                    points = res.generate()
+
+                points, cells = np.unique(points, axis=0, return_inverse=True)
+                cells = cells.reshape((-1, 3))
+
+                self.mesh_ready.emit((points, cells, res))
+
+        except Exception:
+            logger.exception("Error during render")
+        finally:
+            self.finished.emit()
+
+
 class MainUi(QMainWindow):
     def __init__(self):
         super().__init__() # Call the inherited classes __init__ method
-        uic.loadUi(importlib.resources.open_binary('pysdfscad_qtgui', 'main.ui'), self)
+        loader = QUiLoader()
+        ui_file_data = importlib.resources.open_binary('pysdfscad_qtgui', 'main.ui').read()
+        ui_buffer = QBuffer()
+        ui_buffer.setData(ui_file_data)
+        ui_buffer.open(QIODevice.ReadOnly)
+        self.ui_window = loader.load(ui_buffer)
+
+        self.setCentralWidget(self.ui_window.centralWidget())
+        self.setMenuBar(self.ui_window.menuBar())
+        self.setStatusBar(self.ui_window.statusBar())
+        self.setWindowTitle(self.ui_window.windowTitle())
+
+        self.sideSplitter = self.findChild(QSplitter, "sideSplitter")
+        self.tabWidget = self.findChild(QTabWidget, "tabWidget")
+        self.action_New = self.ui_window.findChild(QAction, "action_New")
+        self.actionOpen = self.ui_window.findChild(QAction, "actionOpen")
+        self.actionSave = self.ui_window.findChild(QAction, "actionSave")
+        self.actionSave_As = self.ui_window.findChild(QAction, "actionSave_As")
+        self.actionExit = self.ui_window.findChild(QAction, "actionExit")
+        self.actionRender = self.ui_window.findChild(QAction, "actionRender")
+        self.actionExport_Mesh = self.ui_window.findChild(QAction, "actionExport_Mesh")
+
         self.readSettings()
 
         self.openscadFile=OpenscadFile()
         self.mesh=None
+        self.result=None
 
         self.preview3d=gl.GLViewWidget(self.sideSplitter)
         self.preview3d.setCameraPosition(distance=40)
@@ -261,29 +225,25 @@ class MainUi(QMainWindow):
         self.logger=QTextEditLogger(self.sideSplitter)
         self._logger_handle_id=logger.add(self.logger, colorize=True,format=log_format)
 
-        self.editor=EditorAll()
-        self.editor.setText(EXAMPLE_TEXT)
+        self.editor=QTextEdit()
+        font = QFont()
+        font.setFamily('Consolas')
+        font.setFixedPitch(True)
+        font.setPointSize(10)
+        font.setBold(True)
+        self.editor.setFont(font)
+        self.editor.setPlainText(EXAMPLE_TEXT)
 
         self.tabWidget.addTab(self.editor,"Source")
 
         #self._exampleMenu(self.findChild(QMenu,"menuExamples"))
 
-        self.astPreview=QsciScintilla()
-        self.astPreview.setIndentationGuides(True)
-        self.astPreview.setIndentationsUseTabs(False)
-        self.astPreview.setIndentationWidth(4)
-        self.astPreview.setLexer(Qsci.QsciLexerPython(self.astPreview))
+        self.astPreview=QTextEdit()
         self.astPreview.setReadOnly(True)
-        self.astPreview.update_in_place=False
         self.tabWidget.addTab(self.astPreview,"AST")
 
-        self.pythonPreview=QsciScintilla()
-        self.pythonPreview.setIndentationGuides(True)
-        self.pythonPreview.setIndentationsUseTabs(False)
-        self.pythonPreview.setIndentationWidth(4)
-        self.pythonPreview.setLexer(Qsci.QsciLexerPython(self.pythonPreview))
+        self.pythonPreview=QTextEdit()
         self.pythonPreview.setReadOnly(True)
-        self.pythonPreview.update_in_place=False
         self.tabWidget.addTab(self.pythonPreview,"Python")
 
         self._connectActions()
@@ -319,51 +279,29 @@ class MainUi(QMainWindow):
         self.setWindowTitle(f"{self.openscadFile.file} - pySdfScad")
 
 
-    @logger.catch
-    def _render(self):
-        try:
-            #Try and set background threads to a *low* priority,
-            # since people on the internet seem confused about this
-            # a higher nice value means your program is *nicer* to
-            # other programs, and will get out of their way.
-            os.nice(14)
-        except: pass
+    def update_mesh(self, data):
+        points, cells, result_obj = data
+        self.result = result_obj
+        self.mesh = (points, cells)
 
-        self.openscadFile.text=self.editor.text()
-        self.astPreview.setText(self.openscadFile.as_ast())
-        self.pythonPreview.setText(self.openscadFile.as_python())
-        result = list(self.openscadFile.run())
-        if not result:
-            logger.info("No top level geometry to render")
-        else:
-            self.result=result[0]
-            if isinstance(self.result,sdf.SDF2):
-                self.result=self.result.extrude(0.1)
-            import numpy as np
-            with redirect_stdout(LoggerWriter(logger.opt(depth=1).info)):
-                points = self.result.generate()
-            points, cells = np.unique(points, axis=0, return_inverse=True)
-            cells = cells.reshape((-1, 3))
-            self.mesh=(points,cells)
-    
-            meshdata = gl.MeshData(vertexes=points, faces=cells)
-            mesh = gl.GLMeshItem(meshdata=meshdata,
+        meshdata = gl.MeshData(vertexes=points, faces=cells)
+        mesh = gl.GLMeshItem(meshdata=meshdata,
                                  smooth=False, drawFaces=True,
                                  drawEdges=False,
                                  shader="normalColor",
                                  color = (1,1,1,1), edgeColor=(0.2, 0.5, 0.2, 1)
                                  )
-            self.preview3d.clear()
-            g = gl.GLGridItem()
-            g.setSize(200, 200)
-            g.setSpacing(10, 10)
+        self.preview3d.clear()
+        g = gl.GLGridItem()
+        g.setSize(200, 200)
+        g.setSpacing(10, 10)
 
-            a=gl.GLAxisItem()
-            a.setSize(10,10,10)
+        a=gl.GLAxisItem()
+        a.setSize(10,10,10)
 
-            self.preview3d.addItem(g)
-            self.preview3d.addItem(a)
-            self.preview3d.addItem(mesh)
+        self.preview3d.addItem(g)
+        self.preview3d.addItem(a)
+        self.preview3d.addItem(mesh)
 
     def exportMesh(self):
         if not self.result:
@@ -385,14 +323,14 @@ class MainUi(QMainWindow):
             filename = dlg.selectedFiles()[0]
             self.openscadFile.file=Path(filename)
             self.openscadFile.reload()
-            self.editor.setText(self.openscadFile.text)
+            self.editor.setPlainText(self.openscadFile.text)
         self.setWindowTitle(f"{self.openscadFile.file} - pySdfScad")
 
     def saveFile(self):
         if not self.openscadFile.file:
             self.saveFileAs()
         else:
-            self.openscadFile.text=self.editor.text()
+            self.openscadFile.text=self.editor.toPlainText()
             self.openscadFile.save()
 
     def render(self):
@@ -401,10 +339,23 @@ class MainUi(QMainWindow):
         logger.warning(f'Save your files \x1b[31mregularly\x1b[0m')
         logger.info(f"Started new render with file {self.openscadFile.file}")
         self.preview3d.clear()
-        self.astPreview.setText("")
-        self.pythonPreview.setText("")
-        thread = Thread(target=self._render)
-        thread.start()
+        self.astPreview.setPlainText("")
+        self.pythonPreview.setPlainText("")
+        
+        self.openscadFile.text = self.editor.toPlainText()
+
+        self.thread = QThread()
+        self.worker = RenderWorker(self.openscadFile)
+        self.worker.moveToThread(self.thread)
+        self.thread.started.connect(self.worker.run)
+        self.worker.finished.connect(self.thread.quit)
+        self.worker.finished.connect(self.worker.deleteLater)
+        self.thread.finished.connect(self.thread.deleteLater)
+        self.worker.ast_ready.connect(self.astPreview.setPlainText)
+        self.worker.python_ready.connect(self.pythonPreview.setPlainText)
+        self.worker.mesh_ready.connect(self.update_mesh)
+        self.worker.log_message.connect(logger.info)
+        self.thread.start()
 
     def closeEvent(self, event):
         logger.remove(self._logger_handle_id)
@@ -422,7 +373,7 @@ class MainUi(QMainWindow):
             logger.warning("Couldn't restore window state from settings")
 
     def _loadExample(self,file):
-        self.editor.setText(file.read_text())
+        self.editor.setPlainText(file.read_text())
 
     def _exampleMenu(self,parent):
         """Generate examples based on folder structure
@@ -452,7 +403,7 @@ class MainUi(QMainWindow):
                 else:
                     text = value.read_text
                     action = parent.addAction(key)
-                    action.triggered.connect(lambda: self.editor.setText(text()))
+                    action.triggered.connect(lambda: self.editor.setPlainText(text()))
 
         menu_items=list(recursive_menu(nest,parent))
         parent.addMenu(menu_items[0])

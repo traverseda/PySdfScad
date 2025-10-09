@@ -1,53 +1,40 @@
-[tool.poetry]
+[project]
 name = "pysdfscad"
 version = "0.1.0"
 description = ""
-authors = ["Alex Davies <traverse.da@gmail.com>"]
+authors = [{ name = "Alex Davies", email = "traverse.da@gmail.com" }]
+requires-python = ">=3.10,<3.12"
 readme = "README.md"
-
-packages = [
-    { include = "pysdfscad" },
-    { include = "pysdfscad_qtgui" },
+dependencies = [
+    "sdf",
+    "lark>=1.1.5,<2",
+    "loguru>=0.6.0,<0.7",
+    "click>=8.1.3,<9",
+    "appdirs>=1.4.4,<2",
+    "astor>=0.8.1,<0.9",
 ]
 
-include = ["pysdfscad/openscad.lark"]
-
-[tool.poetry.dependencies]
-#python = "^3.10"
-python = ">=3.10,<3.12" #Required for pyinstaller
-sdf = {git = "https://github.com/fogleman/sdf.git"}
-lark = "^1.1.5"
-loguru = "^0.6.0"
-click = "^8.1.3"
-pyqt5 = {version = "^5.15.7", optional = true}
-qscintilla = {version = "^2.13.3", optional = true}
-pyqtgraph = {version = "^0.13.1", optional = true}
-pyopengl = {version = "^3.1.6", optional=true}
-appdirs = "^1.4.4"
-astor = "^0.8.1"
-mkdocs-macros-plugin = "^0.7.0"
-
-[tool.poetry.extras]
-qtgui = ["PyQt5","qscintilla","pysdfscad_qtgui","pyqtgraph","pyopengl"]
-#docs = ["Sphinx", "sphinx-rtd-theme",]
-
-[tool.poetry.scripts]
+[project.scripts]
 pysdfscad = "pysdfscad.main:main"
-pysdfscad_qtgui = { callable = "pysdfscad_qtgui.main:main", extras = ["qtgui"] }
+pysdfscad_qtgui = "pysdfscad_qtgui.main:main"
 
-[tool.poetry.group.dev.dependencies]
-pytest = "^7.2.0"
-black = "^22.12.0"
-coverage = "^7.0.5"
-nuitka = "^1.4.5"
-ordered-set = "^4.1.0"
-zstandard = "^0.19.0"
-pyinstaller = "^5.8.0"
-pyinstaller-hooks-contrib = "^2022.15"
-mkdocs = "^1.4.2"
-mkdocstrings = {extras = ["python"], version = "^0.20.0"}
-mkdocs-material = "^9.0.12"
+[project.optional-dependencies]
+gui = [
+    "pyside6>=6.9.3",
+    "qscintilla>=2.13.3,<3",
+    "pyqtgraph>=0.13.1,<0.14",
+    "pyopengl>=3.1.6,<4",
+]
+dev = [
+    "pytest>=7.2.0,<8",
+    "black>=22.12.0,<23",
+]
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.uv]
+package = true
+
+[tool.uv.sources]
+sdf = { git = "https://github.com/fogleman/sdf.git" }
+
+[tool.setuptools]
+packages = ["pysdfscad", "pysdfscad_qtgui"]
